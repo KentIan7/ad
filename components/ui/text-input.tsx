@@ -88,11 +88,11 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
   },
   inputError: {
-    borderColor: Colors.danger,
+    borderColor: Colors.rejected,
   },
   errorText: {
     ...Typography.caption,
-    color: Colors.danger,
+    color: Colors.rejected,
     marginTop: Spacing.xs,
   },
 });

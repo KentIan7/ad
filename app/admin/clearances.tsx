@@ -438,11 +438,11 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.md,
   },
   roleOptionError: {
-    borderColor: Colors.danger,
+    borderColor: Colors.rejected,
   },
   fieldErrorText: {
     ...Typography.caption,
-    color: Colors.danger,
+    color: Colors.rejected,
     marginTop: Spacing.xs,
   },
   modalActions: {

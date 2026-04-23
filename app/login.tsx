@@ -70,7 +70,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           value={email}
           onChangeText={(val) => { setEmail(val); setErrors(prev => ({ ...prev, email: undefined })); }}
           keyboardType="email-address"
-          autoCapitalize="none"
+         // autoCapitalize="none"
           editable={!isLoading}
           error={errors.email}
         />

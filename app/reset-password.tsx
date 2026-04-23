@@ -75,7 +75,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
           placeholder="Enter token"
           value={token}
           onChangeText={(val) => { setToken(val); setErrors(prev => ({ ...prev, token: undefined })); }}
-          autoCapitalize="none"
+          //autoCapitalize="none"
           editable={!isLoading}
           error={errors.token}
         />
