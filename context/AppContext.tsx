@@ -4,7 +4,7 @@
  */
 
 import { db } from '@/utils/firebase';
-import { AppContextType, Clearance, ClearancePart, StaffRole, StudentClearance, User } from '@/types';
+import { AppContextType, Clearance, StaffRole, StudentClearance, User } from '@/types';
 import { 
   addDoc, 
   collection, 
@@ -28,8 +28,8 @@ export const AppContext = createContext<AppContextType>({
   updateClearance: () => {},
   deleteClearance: () => {},
   submitStudentClearance: () => {},
-  approveClearancePart: () => {},
-  rejectClearancePart: () => {},
+  approveClearance: () => {},
+  rejectClearance: () => {},
 });
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
