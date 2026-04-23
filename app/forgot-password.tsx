@@ -65,7 +65,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
-          autoCapitalize="none"
+         // autoCapitalize="none"
           editable={!isLoading}
         />
 
