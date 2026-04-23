@@ -25,12 +25,14 @@ interface ForgotPasswordScreenProps {
 const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
   const { forgotPassword, isLoading } = useAuth();
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address');
+      setEmailError('Email address is required');
       return;
     }
+    setEmailError('');
 
     try {
       await forgotPassword(email);
@@ -63,10 +65,11 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
           label="Email Address"
           placeholder="Enter your email"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(val) => { setEmail(val); if (val.trim()) setEmailError(''); }}
           keyboardType="email-address"
          // autoCapitalize="none"
           editable={!isLoading}
+          error={emailError || undefined}
         />
 
         <Button

@@ -30,27 +30,42 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
   const [editRoleId, setEditRoleId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [errors, setErrors] = useState<{name?: string, description?: string}>({});
 
   const handleSave = async () => {
     const safeName = name || '';
     const safeDescription = description || '';
 
-    if (!safeName.trim() || !safeDescription.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+    const newErrors: {name?: string, description?: string} = {};
+    if (!safeName.trim()) newErrors.name = 'Role name is required';
+    if (!safeDescription.trim()) newErrors.description = 'Description is required';
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
       return;
     }
 
     try {
       if (editRoleId) {
         await updateStaffRole(editRoleId, name, description);
-        Alert.alert('Success', 'Staff role updated successfully');
+        if (Platform.OS !== 'web') {
+          Alert.alert('Success', 'Staff role updated successfully');
+        } else {
+          window.alert('Staff role updated successfully');
+        }
       } else {
         await createStaffRole(name, description);
-        Alert.alert('Success', 'Staff role created successfully');
+        if (Platform.OS !== 'web') {
+          Alert.alert('Success', 'Staff role created successfully');
+        } else {
+          window.alert('Staff role created successfully');
+        }
       }
 
       setName('');
       setDescription('');
+      setErrors({});
       setEditRoleId(null);
       setShowModal(false);
     } catch (error: any) {
@@ -118,6 +133,7 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
             setEditRoleId(null);
             setName('');
             setDescription('');
+            setErrors({});
             setShowModal(true);
           }}
           variant="primary"
@@ -173,16 +189,18 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
               label="Role Name"
               placeholder="e.g., IT Office"
               value={name}
-              onChangeText={setName}
+              onChangeText={(val) => { setName(val); setErrors(prev => ({ ...prev, name: undefined })); }}
+              error={errors.name}
             />
 
             <TextInput
               label="Description"
               placeholder="What does this role manage?"
               value={description}
-              onChangeText={setDescription}
+              onChangeText={(val) => { setDescription(val); setErrors(prev => ({ ...prev, description: undefined })); }}
               multiline
               numberOfLines={3}
+              error={errors.description}
             />
 
             <View style={styles.modalActions}>
@@ -193,6 +211,7 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
                   setEditRoleId(null);
                   setName('');
                   setDescription('');
+                  setErrors({});
                 }}
                 variant="secondary"
                 style={styles.modalButton}

@@ -32,27 +32,30 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [staffRole, setStaffRole] = useState('');
+  const [errors, setErrors] = useState<{name?: string; description?: string; staffRole?: string}>({});
 
   const handleSave = async () => {
     const safeName = name || '';
     const safeDescription = description || '';
 
-    if (!safeName.trim() || !safeDescription.trim()) {
-      Alert.alert('Error', 'Please fill in clearance name and description');
-      return;
-    }
+    const newErrors: {name?: string; description?: string; staffRole?: string} = {};
+    if (!safeName.trim()) newErrors.name = 'Clearance name is required';
+    if (!safeDescription.trim()) newErrors.description = 'Description is required';
+    if (!staffRole) newErrors.staffRole = 'Please select an assigned staff role';
 
-    if (!staffRole) {
-      Alert.alert('Error', 'Please select an assigned staff role');
-      return;
-    }
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
     const departmentsAllowed = ['Computer Science', 'Engineering', 'Business Administration'];
     
     try {
       if (editClearanceId) {
         await updateClearance(editClearanceId, name, description, staffRole, departmentsAllowed);
-        Alert.alert('Success', 'Clearance updated successfully');
+        if (Platform.OS !== 'web') {
+          Alert.alert('Success', 'Clearance updated successfully');
+        } else {
+          window.alert('Clearance updated successfully');
+        }
       } else {
         await createClearance(
           name,
@@ -60,12 +63,17 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
           staffRole,
           departmentsAllowed
         );
-        Alert.alert('Success', 'Clearance created successfully');
+        if (Platform.OS !== 'web') {
+          Alert.alert('Success', 'Clearance created successfully');
+        } else {
+          window.alert('Clearance created successfully');
+        }
       }
 
       setName('');
       setDescription('');
       setStaffRole('');
+      setErrors({});
       setEditClearanceId(null);
       setShowModal(false);
     } catch (error: any) {
@@ -135,6 +143,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
             setName('');
             setDescription('');
             setStaffRole('');
+            setErrors({});
             setShowModal(true);
           }}
           variant="primary"
@@ -199,16 +208,18 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                 label="Clearance Name"
                 placeholder="e.g., IT Clearance"
                 value={name}
-                onChangeText={setName}
+                onChangeText={(val) => { setName(val); setErrors(prev => ({ ...prev, name: undefined })); }}
+                error={errors.name}
               />
 
               <TextInput
                 label="Description"
                 placeholder="What is this clearance for?"
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={(val) => { setDescription(val); setErrors(prev => ({ ...prev, description: undefined })); }}
                 multiline
                 numberOfLines={2}
+                error={errors.description}
               />
 
               <View style={styles.partContainer}>
@@ -224,8 +235,9 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                       style={[
                         styles.roleOption,
                         staffRole === role.id && styles.roleOptionSelected,
+                        !!errors.staffRole && styles.roleOptionError,
                       ]}
-                      onPress={() => setStaffRole(role.id)}
+                      onPress={() => { setStaffRole(role.id); setErrors(prev => ({ ...prev, staffRole: undefined })); }}
                     >
                       <Text
                         style={[
@@ -237,7 +249,8 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
+                  </ScrollView>
+                {errors.staffRole ? <Text style={styles.fieldErrorText}>{errors.staffRole}</Text> : null}
               </View>
             </ScrollView>
 
@@ -250,6 +263,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                   setName('');
                   setDescription('');
                   setStaffRole('');
+                  setErrors({});
                 }}
                 variant="secondary"
                 style={styles.modalButton}
@@ -422,6 +436,14 @@ const styles = StyleSheet.create({
   },
   addPartButton: {
     marginVertical: Spacing.md,
+  },
+  roleOptionError: {
+    borderColor: Colors.danger,
+  },
+  fieldErrorText: {
+    ...Typography.caption,
+    color: Colors.danger,
+    marginTop: Spacing.xs,
   },
   modalActions: {
     flexDirection: 'row',

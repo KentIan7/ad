@@ -26,12 +26,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { login, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter email and password');
-      return;
-    }
+    const newErrors: {email?: string; password?: string} = {};
+    if (!email.trim()) newErrors.email = 'Email is required';
+    if (!password.trim()) newErrors.password = 'Password is required';
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
     try {
       await login(email, password);
@@ -66,19 +68,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           label="Email"
           placeholder="Enter your email"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(val) => { setEmail(val); setErrors(prev => ({ ...prev, email: undefined })); }}
           keyboardType="email-address"
           autoCapitalize="none"
           editable={!isLoading}
+          error={errors.email}
         />
 
         <TextInput
           label="Password"
           placeholder="Enter your password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(val) => { setPassword(val); setErrors(prev => ({ ...prev, password: undefined })); }}
           secureTextEntry
           editable={!isLoading}
+          error={errors.password}
         />
 
         <TouchableOpacity 

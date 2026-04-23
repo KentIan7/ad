@@ -33,22 +33,15 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
   const [token, setToken] = useState(route?.params?.token || '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [errors, setErrors] = useState<{token?: string; newPassword?: string; confirmPassword?: string}>({});
 
   const handleSubmit = async () => {
-    if (!token.trim()) {
-      Alert.alert('Error', 'Please enter the reset token');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
+    const newErrors: {token?: string; newPassword?: string; confirmPassword?: string} = {};
+    if (!token.trim()) newErrors.token = 'Reset token is required';
+    if (newPassword.length < 6) newErrors.newPassword = 'Password must be at least 6 characters';
+    if (newPassword !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
     try {
       await resetPassword(token, newPassword);
@@ -81,27 +74,30 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
           label="Reset Token"
           placeholder="Enter token"
           value={token}
-          onChangeText={setToken}
+          onChangeText={(val) => { setToken(val); setErrors(prev => ({ ...prev, token: undefined })); }}
           autoCapitalize="none"
           editable={!isLoading}
+          error={errors.token}
         />
 
         <TextInput
           label="New Password"
           placeholder="Enter new password"
           value={newPassword}
-          onChangeText={setNewPassword}
+          onChangeText={(val) => { setNewPassword(val); setErrors(prev => ({ ...prev, newPassword: undefined, confirmPassword: undefined })); }}
           secureTextEntry
           editable={!isLoading}
+          error={errors.newPassword}
         />
 
         <TextInput
           label="Confirm Password"
           placeholder="Confirm your password"
           value={confirmPassword}
-          onChangeText={setConfirmPassword}
+          onChangeText={(val) => { setConfirmPassword(val); setErrors(prev => ({ ...prev, confirmPassword: undefined })); }}
           secureTextEntry
           editable={!isLoading}
+          error={errors.confirmPassword}
         />
 
         <Button

@@ -29,6 +29,7 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
   const { user } = useAuth();
   const { rejectClearance } = useApp();
   const [remarks, setRemarks] = useState('');
+  const [remarksError, setRemarksError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { studentClearanceId } = route?.params || {};
@@ -40,9 +41,10 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
     }
 
     if (!remarks.trim()) {
-      Alert.alert('Error', 'Please provide a reason for rejection');
+      setRemarksError('Please provide a reason for rejection');
       return;
     }
+    setRemarksError('');
 
     setIsProcessing(true);
     try {
@@ -97,9 +99,10 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
           label="Rejection Reason"
           placeholder="e.g., You still have 3 books checked out. Please return them first."
           value={remarks}
-          onChangeText={setRemarks}
+          onChangeText={(val) => { setRemarks(val); if (val.trim()) setRemarksError(''); }}
           multiline
           numberOfLines={4}
+          error={remarksError || undefined}
         />
       </Card>
 

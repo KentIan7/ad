@@ -18,6 +18,7 @@ interface TextInputProps {
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   editable?: boolean;
   style?: ViewStyle;
+  error?: string;
 }
 
 export const TextInput: React.FC<TextInputProps> = ({
@@ -31,6 +32,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   keyboardType = 'default',
   editable = true,
   style,
+  error,
 }) => {
   return (
     <View style={[styles.container, style]}>
@@ -49,8 +51,10 @@ export const TextInput: React.FC<TextInputProps> = ({
           styles.input,
           multiline && styles.multiline,
           !editable && styles.disabled,
+          !!error && styles.inputError,
         ]}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 };
@@ -82,5 +86,13 @@ const styles = StyleSheet.create({
   disabled: {
     backgroundColor: Colors.background,
     color: Colors.textLight,
+  },
+  inputError: {
+    borderColor: Colors.danger,
+  },
+  errorText: {
+    ...Typography.caption,
+    color: Colors.danger,
+    marginTop: Spacing.xs,
   },
 });
