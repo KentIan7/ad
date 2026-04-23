@@ -104,17 +104,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     async (
       name: string,
       description: string,
-      parts: Omit<ClearancePart, 'id' | 'status' | 'remarks' | 'approvedBy' | 'approvedAt'>[],
+      staffRole: string,
       departmentsAllowed: string[]
     ) => {
       try {
         await addDoc(collection(db, 'clearances'), {
           name,
           description,
-          parts: parts.map(part => ({
-            ...part,
-            status: 'pending' as const,
-          })),
+          staffRole,
           departmentsAllowed,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -128,12 +125,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const updateClearance = useCallback(
-    async (id: string, name: string, description: string, parts: ClearancePart[], departmentsAllowed: string[]) => {
+    async (id: string, name: string, description: string, staffRole: string, departmentsAllowed: string[]) => {
       try {
         await updateDoc(doc(db, 'clearances', id), {
           name,
           description,
-          parts,
+          staffRole,
           departmentsAllowed,
           updatedAt: new Date().toISOString(),
         });
@@ -163,54 +160,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       studentId,
       clearanceId,
       clearance,
-      parts: clearance.parts.map(part => ({
-        ...part,
-        status: 'pending' as const,
-      })),
+      status: 'pending' as const,
       submittedAt: new Date().toISOString(),
     });
   }, [clearances]);
 
-  const approveClearancePart = useCallback(
-    async (studentClearanceId: string, partIndex: number, staffId: string, remarks?: string) => {
+  const approveClearance = useCallback(
+    async (studentClearanceId: string, staffId: string, remarks?: string) => {
       const sc = studentClearances.find(s => s.id === studentClearanceId);
       if (!sc) return;
 
-      const newParts = [...sc.parts];
-      newParts[partIndex] = {
-        ...newParts[partIndex],
-        status: 'approved' as const,
-        remarks,
-        approvedBy: staffId,
-        approvedAt: new Date().toISOString(),
-      };
-
-      const allCompleted = newParts.every(p => p.status !== 'pending');
+      const now = new Date().toISOString();
 
       await updateDoc(doc(db, 'studentClearances', studentClearanceId), {
-        parts: newParts,
-        completedAt: allCompleted ? new Date().toISOString() : sc.completedAt || null,
+        status: 'approved' as const,
+        remarks: remarks || '',
+        approvedBy: staffId,
+        approvedAt: now,
+        completedAt: now,
       });
     },
     [studentClearances]
   );
 
-  const rejectClearancePart = useCallback(
-    async (studentClearanceId: string, partIndex: number, staffId: string, remarks: string) => {
+  const rejectClearance = useCallback(
+    async (studentClearanceId: string, staffId: string, remarks: string) => {
       const sc = studentClearances.find(s => s.id === studentClearanceId);
       if (!sc) return;
 
-      const newParts = [...sc.parts];
-      newParts[partIndex] = {
-        ...newParts[partIndex],
+      await updateDoc(doc(db, 'studentClearances', studentClearanceId), {
         status: 'rejected' as const,
         remarks,
         approvedBy: staffId,
         approvedAt: new Date().toISOString(),
-      };
-
-      await updateDoc(doc(db, 'studentClearances', studentClearanceId), {
-        parts: newParts,
       });
     },
     [studentClearances]
@@ -230,8 +212,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateClearance,
         deleteClearance,
         submitStudentClearance,
-        approveClearancePart,
-        rejectClearancePart,
+        approveClearance,
+        rejectClearance,
       }}
     >
       {children}

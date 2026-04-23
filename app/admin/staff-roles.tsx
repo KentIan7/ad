@@ -32,7 +32,10 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
   const [description, setDescription] = useState('');
 
   const handleSave = async () => {
-    if (!name.trim() || !description.trim()) {
+    const safeName = name || '';
+    const safeDescription = description || '';
+
+    if (!safeName.trim() || !safeDescription.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -57,8 +60,8 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
 
   const handleEdit = (item: any) => {
     setEditRoleId(item.id);
-    setName(item.name);
-    setDescription(item.description);
+    setName(item.name || '');
+    setDescription(item.description || '');
     setShowModal(true);
   };
 

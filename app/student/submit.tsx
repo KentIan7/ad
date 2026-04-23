@@ -29,7 +29,7 @@ const StudentSubmitScreen: React.FC<StudentSubmitScreenProps> = ({
   navigation,
 }) => {
   const { user } = useAuth();
-  const { clearances, submitStudentClearance } = useApp();
+  const { clearances, submitStudentClearance, staffRoles } = useApp();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { clearanceId } = route?.params || {};
@@ -87,26 +87,21 @@ const StudentSubmitScreen: React.FC<StudentSubmitScreenProps> = ({
         <Text style={styles.description}>{clearance.description}</Text>
       </Card>
 
-      {/* Approval Steps */}
+      {/* Approval Details */}
       <Card>
-        <Text style={styles.stepsTitle}>📋 Approval Steps</Text>
+        <Text style={styles.stepsTitle}>📋 Approval Details</Text>
         <Text style={styles.stepsDescription}>
-          Your clearance request will go through the following approval steps:
+          This clearance request will be sent to and reviewed by:
         </Text>
 
-        {clearance.parts.map((part, index) => (
-          <View key={part.id} style={styles.stepItem}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>{index + 1}</Text>
-            </View>
-            <View style={styles.stepInfo}>
-              <Text style={styles.stepName}>{part.name}</Text>
-              <Text style={styles.stepAssignee}>
-                Approved by: {part.staffRole}
-              </Text>
-            </View>
+        <View style={styles.stepItem}>
+          <View style={styles.stepInfo}>
+            <Text style={styles.stepName}>Assigned Staff Role</Text>
+            <Text style={styles.stepAssignee}>
+              {staffRoles.find(r => r.id === clearance.staffRole)?.name || clearance.staffRole}
+            </Text>
           </View>
-        ))}
+        </View>
       </Card>
 
       {/* Info */}
@@ -114,7 +109,7 @@ const StudentSubmitScreen: React.FC<StudentSubmitScreenProps> = ({
         <Text style={styles.infoIcon}>ℹ️</Text>
         <Text style={styles.infoTitle}>What happens next?</Text>
         <Text style={styles.infoText}>
-          After you submit, the designated staff will review your request. You can track the status of each step in real-time. If any step is rejected, you'll receive details on what needs to be fixed.
+          After you submit, the designated staff will review your request. You can track the status in real-time. If it is rejected, you'll receive details on what needs to be fixed.
         </Text>
       </Card>
 

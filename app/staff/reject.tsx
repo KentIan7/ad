@@ -27,11 +27,11 @@ interface StaffRejectScreenProps {
 
 const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation }) => {
   const { user } = useAuth();
-  const { rejectClearancePart } = useApp();
+  const { rejectClearance } = useApp();
   const [remarks, setRemarks] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { studentClearanceId, partIndex, partName } = route?.params || {};
+  const { studentClearanceId } = route?.params || {};
 
   const handleReject = async () => {
     if (!studentClearanceId) {
@@ -49,16 +49,16 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
       // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      rejectClearancePart(studentClearanceId, partIndex, user?.id || '', remarks);
+      rejectClearance(studentClearanceId, user?.id || '', remarks);
 
-      Alert.alert('Success', 'Clearance part rejected successfully', [
+      Alert.alert('Success', 'Clearance rejected successfully', [
         {
           text: 'OK',
           onPress: () => navigation?.goBack(),
         },
       ]);
     } catch (error) {
-      Alert.alert('Error', 'Failed to reject clearance part');
+      Alert.alert('Error', 'Failed to reject clearance');
     } finally {
       setIsProcessing(false);
     }
@@ -80,21 +80,17 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
       <Card style={styles.warningCard}>
         <Text style={styles.warningTitle}>⚠️ Rejection</Text>
         <Text style={styles.warningText}>
-          When you reject this clearance part, the student will need to resubmit it after addressing the issues mentioned in the remarks.
+          When you reject this clearance, the student will need to resubmit it after addressing the issues mentioned in the remarks.
         </Text>
       </Card>
 
-      {/* Information Card */}
-      <Card>
-        <Text style={styles.infoLabel}>Part to Reject</Text>
-        <Text style={styles.infoValue}>{partName}</Text>
-      </Card>
+
 
       {/* Remarks Section */}
       <Card>
         <Text style={styles.sectionTitle}>Reason for Rejection (Required)</Text>
         <Text style={styles.description}>
-          Please explain why this clearance part is being rejected. This will help the student understand what needs to be fixed.
+          Please explain why this clearance is being rejected. This will help the student understand what needs to be fixed.
         </Text>
 
         <TextInput

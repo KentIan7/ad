@@ -31,32 +31,19 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
   const [editClearanceId, setEditClearanceId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [parts, setParts] = useState<any[]>([
-    { name: '', staffRole: '' },
-  ]);
-
-  const handleAddPart = () => {
-    setParts([...parts, { name: '', staffRole: '' }]);
-  };
-
-  const handleRemovePart = (index: number) => {
-    setParts(parts.filter((_, i) => i !== index));
-  };
-
-  const handleUpdatePart = (index: number, field: string, value: string) => {
-    const newParts = [...parts];
-    newParts[index] = { ...newParts[index], [field]: value };
-    setParts(newParts);
-  };
+  const [staffRole, setStaffRole] = useState('');
 
   const handleSave = async () => {
-    if (!name.trim() || !description.trim()) {
+    const safeName = name || '';
+    const safeDescription = description || '';
+
+    if (!safeName.trim() || !safeDescription.trim()) {
       Alert.alert('Error', 'Please fill in clearance name and description');
       return;
     }
 
-    if (parts.some(p => !p.name.trim() || !p.staffRole)) {
-      Alert.alert('Error', 'Please complete all clearance parts');
+    if (!staffRole) {
+      Alert.alert('Error', 'Please select an assigned staff role');
       return;
     }
 
@@ -64,17 +51,13 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
     
     try {
       if (editClearanceId) {
-        const updatedParts = parts.map(p => ({
-          ...p,
-          status: p.status || 'pending'
-        }));
-        await updateClearance(editClearanceId, name, description, updatedParts, departmentsAllowed);
+        await updateClearance(editClearanceId, name, description, staffRole, departmentsAllowed);
         Alert.alert('Success', 'Clearance updated successfully');
       } else {
         await createClearance(
           name,
           description,
-          parts.map(p => ({ name: p.name, staffRole: p.staffRole })),
+          staffRole,
           departmentsAllowed
         );
         Alert.alert('Success', 'Clearance created successfully');
@@ -82,7 +65,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
 
       setName('');
       setDescription('');
-      setParts([{ name: '', staffRole: '' }]);
+      setStaffRole('');
       setEditClearanceId(null);
       setShowModal(false);
     } catch (error: any) {
@@ -92,9 +75,9 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
 
   const handleEdit = (item: any) => {
     setEditClearanceId(item.id);
-    setName(item.name);
-    setDescription(item.description);
-    setParts(item.parts);
+    setName(item.name || '');
+    setDescription(item.description || '');
+    setStaffRole(item.staffRole || '');
     setShowModal(true);
   };
 
@@ -151,7 +134,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
             setEditClearanceId(null);
             setName('');
             setDescription('');
-            setParts([{ name: '', staffRole: '' }]);
+            setStaffRole('');
             setShowModal(true);
           }}
           variant="primary"
@@ -175,15 +158,12 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                   <Text style={styles.clearanceName}>{item.name}</Text>
                   <Text style={styles.clearanceDescription}>{item.description}</Text>
                   <Text style={styles.clearanceMeta}>
-                    {item.parts.length} part{item.parts.length !== 1 ? 's' : ''} • {' '}
-                    {item.departmentsAllowed.length} department{item.departmentsAllowed.length !== 1 ? 's' : ''}
+                    {item.departmentsAllowed.length} department{item.departmentsAllowed.length !== 1 ? 's' : ''} allowed
                   </Text>
                   <View style={styles.partsList}>
-                    {item.parts.map((part, idx) => (
-                      <Text key={idx} style={styles.partItem}>
-                        • {part.name} ({part.staffRole})
-                      </Text>
-                    ))}
+                    <Text style={styles.partItem}>
+                      Assigned to: {staffRoles.find(r => r.id === item.staffRole)?.name || item.staffRole}
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.actionsContainer}>
@@ -231,64 +211,34 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                 numberOfLines={2}
               />
 
-              <Text style={styles.partsTitle}>Clearance Parts</Text>
-              {parts.map((part, index) => (
-                <View key={index} style={styles.partContainer}>
-                  <TextInput
-                    label={`Part ${index + 1} Name`}
-                    placeholder="e.g., IT Equipment Check"
-                    value={part.name}
-                    onChangeText={value => handleUpdatePart(index, 'name', value)}
-                  />
-
-                  {/* Staff Role Selector */}
-                  <View>
-                    <Text style={styles.label}>Assigned Staff Role</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.roleSelector}
+              <View style={styles.partContainer}>
+                <Text style={styles.label}>Assigned Staff Role</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.roleSelector}
+                >
+                  {staffRoles.map(role => (
+                    <TouchableOpacity
+                      key={role.id}
+                      style={[
+                        styles.roleOption,
+                        staffRole === role.id && styles.roleOptionSelected,
+                      ]}
+                      onPress={() => setStaffRole(role.id)}
                     >
-                      {staffRoles.map(role => (
-                        <TouchableOpacity
-                          key={role.id}
-                          style={[
-                            styles.roleOption,
-                            part.staffRole === role.id && styles.roleOptionSelected,
-                          ]}
-                          onPress={() => handleUpdatePart(index, 'staffRole', role.id)}
-                        >
-                          <Text
-                            style={[
-                              styles.roleOptionText,
-                              part.staffRole === role.id && styles.roleOptionTextSelected,
-                            ]}
-                          >
-                            {role.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {parts.length > 1 && (
-                    <Button
-                      title="Remove Part"
-                      onPress={() => handleRemovePart(index)}
-                      variant="danger"
-                      size="small"
-                      style={styles.removePartButton}
-                    />
-                  )}
-                </View>
-              ))}
-
-              <Button
-                title="+ Add Another Part"
-                onPress={handleAddPart}
-                variant="secondary"
-                style={styles.addPartButton}
-              />
+                      <Text
+                        style={[
+                          styles.roleOptionText,
+                          staffRole === role.id && styles.roleOptionTextSelected,
+                        ]}
+                      >
+                        {role.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             </ScrollView>
 
             <View style={styles.modalActions}>
@@ -299,7 +249,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                   setEditClearanceId(null);
                   setName('');
                   setDescription('');
-                  setParts([{ name: '', staffRole: '' }]);
+                  setStaffRole('');
                 }}
                 variant="secondary"
                 style={styles.modalButton}

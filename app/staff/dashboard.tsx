@@ -25,50 +25,44 @@ const StaffDashboardScreen: React.FC<StaffDashboardScreenProps> = ({ navigation 
   const { user, logout } = useAuth();
   const { studentClearances, users } = useApp();
 
-  // Get all pending parts for this staff member
-  const getPendingParts = () => {
+  // Get all pending clearances for this staff member
+  const getPendingClearances = () => {
     const pending: any[] = [];
 
     studentClearances.forEach(sc => {
-      sc.parts.forEach((part, partIndex) => {
-        if (
-          part.status === 'pending' &&
-          part.staffRole === user?.staffRole
-        ) {
-          const student = users.find(u => u.id === sc.studentId);
-          pending.push({
-            studentClearanceId: sc.id,
-            partIndex,
-            part,
-            clearanceName: sc.clearance.name,
-            student,
-          });
-        }
-      });
+      if (
+        sc.status === 'pending' &&
+        sc.clearance.staffRole === user?.staffRole
+      ) {
+        const student = users.find(u => u.id === sc.studentId);
+        pending.push({
+          studentClearanceId: sc.id,
+          clearanceName: sc.clearance.name,
+          student,
+        });
+      }
     });
 
     return pending;
   };
 
-  // Get all cleared parts (approved + rejected) for stats
-  const getClearedParts = () => {
+  // Get all cleared clearances (approved + rejected) for stats
+  const getClearedClearances = () => {
     let cleared = 0;
     studentClearances.forEach(sc => {
-      sc.parts.forEach(part => {
-        if (
-          part.staffRole === user?.staffRole &&
-          part.status !== 'pending'
-        ) {
-          cleared++;
-        }
-      });
+      if (
+        sc.clearance.staffRole === user?.staffRole &&
+        sc.status !== 'pending'
+      ) {
+        cleared++;
+      }
     });
     return cleared;
   };
 
-  const pendingParts = getPendingParts();
-  const clearedParts = getClearedParts();
-  const totalParts = pendingParts.length + clearedParts;
+  const pendingClearances = getPendingClearances();
+  const clearedClearances = getClearedClearances();
+  const totalClearances = pendingClearances.length + clearedClearances;
 
   const handleLogout = () => {
     logout();
@@ -94,19 +88,19 @@ const StaffDashboardScreen: React.FC<StaffDashboardScreenProps> = ({ navigation 
       <View style={styles.statsContainer}>
         <Card style={styles.statCard}>
           <Text style={styles.statIcon}>⏳</Text>
-          <Text style={styles.statValue}>{pendingParts.length}</Text>
+          <Text style={styles.statValue}>{pendingClearances.length}</Text>
           <Text style={styles.statLabel}>Pending</Text>
         </Card>
 
         <Card style={styles.statCard}>
           <Text style={styles.statIcon}>✅</Text>
-          <Text style={styles.statValue}>{clearedParts}</Text>
+          <Text style={styles.statValue}>{clearedClearances}</Text>
           <Text style={styles.statLabel}>Processed</Text>
         </Card>
 
         <Card style={styles.statCard}>
           <Text style={styles.statIcon}>📋</Text>
-          <Text style={styles.statValue}>{totalParts}</Text>
+          <Text style={styles.statValue}>{totalClearances}</Text>
           <Text style={styles.statLabel}>Total</Text>
         </Card>
       </View>
@@ -115,14 +109,14 @@ const StaffDashboardScreen: React.FC<StaffDashboardScreenProps> = ({ navigation 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>📋 Pending Approvals</Text>
 
-        {pendingParts.length === 0 ? (
+        {pendingClearances.length === 0 ? (
           <Card>
             <Text style={styles.emptyText}>No pending approvals</Text>
-            <Text style={styles.emptySubtext}>All clearance parts have been processed</Text>
+            <Text style={styles.emptySubtext}>All clearances have been processed</Text>
           </Card>
         ) : (
           <FlatList
-            data={pendingParts}
+            data={pendingClearances}
             keyExtractor={(item, idx) => idx.toString()}
             scrollEnabled={false}
             renderItem={({ item }) => (
@@ -132,9 +126,6 @@ const StaffDashboardScreen: React.FC<StaffDashboardScreenProps> = ({ navigation 
                     <Text style={styles.studentName}>{item.student?.name}</Text>
                     <Text style={styles.departmentText}>{item.student?.department}</Text>
                     <Text style={styles.clearanceNameText}>{item.clearanceName}</Text>
-                    <Text style={styles.partNameText}>
-                      Part: {item.part.name}
-                    </Text>
                   </View>
 
                   <View style={styles.partActions}>
@@ -143,8 +134,6 @@ const StaffDashboardScreen: React.FC<StaffDashboardScreenProps> = ({ navigation 
                       onPress={() =>
                         navigation?.navigate('StaffApprove', {
                           studentClearanceId: item.studentClearanceId,
-                          partIndex: item.partIndex,
-                          partName: item.part.name,
                         })
                       }
                       variant="success"
@@ -155,8 +144,6 @@ const StaffDashboardScreen: React.FC<StaffDashboardScreenProps> = ({ navigation 
                       onPress={() =>
                         navigation?.navigate('StaffReject', {
                           studentClearanceId: item.studentClearanceId,
-                          partIndex: item.partIndex,
-                          partName: item.part.name,
                         })
                       }
                       variant="danger"
@@ -173,14 +160,14 @@ const StaffDashboardScreen: React.FC<StaffDashboardScreenProps> = ({ navigation 
       {/* Recent Actions */}
       <View style={[styles.section, { marginBottom: Spacing.lg }]}>
         <Text style={styles.sectionTitle}>📝 Recently Processed</Text>
-        {clearedParts === 0 ? (
+        {clearedClearances === 0 ? (
           <Card>
             <Text style={styles.emptyText}>No processed items yet</Text>
           </Card>
         ) : (
           <Card>
             <Text style={styles.infoText}>
-              You have processed {clearedParts} clearance part{clearedParts !== 1 ? 's' : ''}
+              You have processed {clearedClearances} clearance{clearedClearances !== 1 ? 's' : ''}
             </Text>
           </Card>
         )}

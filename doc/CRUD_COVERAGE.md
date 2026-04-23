@@ -15,23 +15,23 @@ This document outlines the **CRUD (Create, Read, Update, Delete)** operations cu
 **Database Collection:** `clearances`
 **Coverage:** Full CRUD
 
-*   **Create:** Admins can create overarching clearance flows (e.g., "Graduation Clearance") via the `AdminClearances` screen. This includes adding multiple "parts" (steps) and assigning each part to a specific Staff Role.
+*   **Create:** Admins can create overarching clearance flows (e.g., "Graduation Clearance") via the `AdminClearances` screen. Each clearance is assigned to a specific Staff Role for approval.
 *   **Read:** Clearances are visible to Admins on the Dashboard and Management screens. Students can view available clearances assigned to their specific department on their Student Dashboard.
-*   **Update:** Admins can update the name, description, and individual parts (including assigned roles) using the ✏️ Edit button. 
+*   **Update:** Admins can update the name, description, and assigned staff role using the ✏️ Edit button. 
 *   **Delete:** Admins can completely delete a clearance configuration using the 🗑️ Delete button.
 
 ## 3. Student Clearances (Submissions)
 **Database Collection:** `studentClearances`
 **Coverage:** Partial CRUD (Intentionally lacks Delete)
 
-*   **Create:** Students initiate a new clearance request from their dashboard (`StudentSubmitScreen`). This copies the clearance structure and creates a new document with an initial "pending" status for all parts.
+*   **Create:** Students initiate a new clearance request from their dashboard (`StudentSubmitScreen`). This copies the clearance structure and creates a new document with an initial "pending" status.
 *   **Read:**
-    *   **Students:** Can view their submitted clearances and track the real-time progress, including seeing which staff members have approved or rejected specific parts.
-    *   **Staff:** Can view all pending and cleared requests assigned to their specific role.
-    *   **Admins:** Have a global view of all students and their overall progress percentages across all active submissions.
-*   **Update:** Staff handle updates by interacting with specific parts of a student's clearance:
-    *   **Approve:** Marks the part as 'approved' and stamps it with an `approvedAt` timestamp (`StaffApproveScreen`).
-    *   **Reject:** Marks the part as 'rejected' and requires the staff member to input remarks explaining the rejection (`StaffRejectScreen`).
+    *   **Students:** Can view their submitted clearances and track their real-time status.
+    *   **Staff:** Can view all pending and processed requests assigned to their specific role.
+    *   **Admins:** Have a global view of all students and their overall completion status across all active submissions.
+*   **Update:** Staff handle updates by interacting with clearances assigned to their role:
+    *   **Approve:** Marks the clearance as 'approved' and stamps it with an `approvedAt` timestamp (`StaffApproveScreen`).
+    *   **Reject:** Marks the clearance as 'rejected' and requires the staff member to input remarks explaining the rejection (`StaffRejectScreen`).
 *   **Delete:** Clearance history serves as an official academic record and is not meant to be deleted through the standard UI by users or admins.
 
 ## 4. Users

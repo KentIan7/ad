@@ -34,9 +34,7 @@ const AdminStudentsScreen: React.FC<AdminStudentsScreenProps> = ({ navigation })
   const getClearanceStatus = (studentClearances: any[]) => {
     if (studentClearances.length === 0) return 'No clearances';
 
-    const allCompleted = studentClearances.every(sc =>
-      sc.parts.every((p: any) => p.status !== 'pending')
-    );
+    const allCompleted = studentClearances.every(sc => sc.status === 'approved');
 
     if (allCompleted) return 'Complete';
     return 'In Progress';
@@ -45,17 +43,10 @@ const AdminStudentsScreen: React.FC<AdminStudentsScreenProps> = ({ navigation })
   const getProgress = (studentClearances: any[]) => {
     if (studentClearances.length === 0) return 0;
 
-    let total = 0;
-    let approved = 0;
+    let total = studentClearances.length;
+    let approved = studentClearances.filter(sc => sc.status === 'approved').length;
 
-    studentClearances.forEach(sc => {
-      sc.parts.forEach((p: any) => {
-        total++;
-        if (p.status === 'approved') approved++;
-      });
-    });
-
-    return total === 0 ? 0 : Math.round((approved / total) * 100);
+    return Math.round((approved / total) * 100);
   };
 
   return (
@@ -118,12 +109,7 @@ const AdminStudentsScreen: React.FC<AdminStudentsScreenProps> = ({ navigation })
                       <View key={idx} style={styles.clearanceItem}>
                         <Text style={styles.clearanceName}>{sc.clearance?.name || 'Unknown Clearance'}</Text>
                         <View style={styles.partsPreview}>
-                          {sc.parts.slice(0, 2).map((p, pidx) => (
-                            <StatusBadge key={pidx} status={p.status} size="small" />
-                          ))}
-                          {sc.parts.length > 2 && (
-                            <Text style={styles.moreText}>+{sc.parts.length - 2}</Text>
-                          )}
+                          <StatusBadge status={sc.status} size="small" />
                         </View>
                       </View>
                     ))}

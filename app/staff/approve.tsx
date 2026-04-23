@@ -27,11 +27,11 @@ interface StaffApproveScreenProps {
 
 const StaffApproveScreen: React.FC<StaffApproveScreenProps> = ({ route, navigation }) => {
   const { user } = useAuth();
-  const { approveClearancePart } = useApp();
+  const { approveClearance } = useApp();
   const [remarks, setRemarks] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { studentClearanceId, partIndex, partName } = route?.params || {};
+  const { studentClearanceId } = route?.params || {};
 
   const handleApprove = async () => {
     if (!studentClearanceId) {
@@ -44,16 +44,16 @@ const StaffApproveScreen: React.FC<StaffApproveScreenProps> = ({ route, navigati
       // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      approveClearancePart(studentClearanceId, partIndex, user?.id || '', remarks);
+      approveClearance(studentClearanceId, user?.id || '', remarks);
 
-      Alert.alert('Success', 'Clearance part approved successfully', [
+      Alert.alert('Success', 'Clearance approved successfully', [
         {
           text: 'OK',
           onPress: () => navigation?.goBack(),
         },
       ]);
     } catch (error) {
-      Alert.alert('Error', 'Failed to approve clearance part');
+      Alert.alert('Error', 'Failed to approve clearance');
     } finally {
       setIsProcessing(false);
     }
@@ -70,12 +70,6 @@ const StaffApproveScreen: React.FC<StaffApproveScreenProps> = ({ route, navigati
           <Text style={styles.title}>Approve Clearance</Text>
         </View>
       </View>
-
-      {/* Information Card */}
-      <Card>
-        <Text style={styles.infoLabel}>Part to Approve</Text>
-        <Text style={styles.infoValue}>{partName}</Text>
-      </Card>
 
       {/* Remarks Section */}
       <Card>

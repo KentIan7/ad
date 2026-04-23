@@ -140,9 +140,6 @@ const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ navigation 
                 <Card>
                   <Text style={styles.itemTitle}>{item.name}</Text>
                   <Text style={styles.itemDescription}>{item.description}</Text>
-                  <Text style={styles.itemMeta}>
-                    {item.parts.length} part{item.parts.length !== 1 ? 's' : ''}
-                  </Text>
                 </Card>
               )}
             />

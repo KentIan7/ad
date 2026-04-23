@@ -45,21 +45,8 @@ const ClearanceDetailScreen: React.FC<ClearanceDetailScreenProps> = ({
     ? new Date(studentClearance.completedAt)
     : null;
 
-  // Calculate progress
-  let approvedCount = 0;
-  let rejectedCount = 0;
-  studentClearance.parts.forEach(part => {
-    if (part.status === 'approved') approvedCount++;
-    if (part.status === 'rejected') rejectedCount++;
-  });
-
-  const pendingCount = studentClearance.parts.length - approvedCount - rejectedCount;
-  const progressPercent = Math.round(
-    ((approvedCount + rejectedCount) / studentClearance.parts.length) * 100
-  );
-
-  const isComplete = pendingCount === 0;
-  const hasRejection = rejectedCount > 0;
+  const isComplete = studentClearance.status === 'approved';
+  const hasRejection = studentClearance.status === 'rejected';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -91,33 +78,24 @@ const ClearanceDetailScreen: React.FC<ClearanceDetailScreenProps> = ({
             />
           </View>
           <View style={styles.statusItem}>
-            <Text style={styles.statusLabel}>Progress</Text>
-            <Text style={styles.progressText}>{progressPercent}%</Text>
+            <Text style={styles.statusLabel}>Assigned Staff Role</Text>
+            <Text style={styles.progressText}>{clearance.staffRole}</Text>
           </View>
         </View>
 
-        {/* Progress Bar */}
-        <View style={styles.progressBarContainer}>
+        {studentClearance.remarks && (
           <View
             style={[
-              styles.progressBar,
-              {
-                width: `${progressPercent}%`,
-                backgroundColor: hasRejection ? Colors.rejected : Colors.approved,
-              },
+              styles.remarksContainer,
+              hasRejection && styles.remarksRejected,
             ]}
-          />
-        </View>
-
-        <View style={styles.statsContainer}>
-          <Text style={styles.statText}>✅ {approvedCount} Approved</Text>
-          <Text style={styles.statText}>⏳ {pendingCount} Pending</Text>
-          {rejectedCount > 0 && (
-            <Text style={[styles.statText, { color: Colors.rejected }]}>
-              ❌ {rejectedCount} Rejected
+          >
+            <Text style={styles.remarksLabel}>
+              {studentClearance.status === 'approved' ? '✍️ Remarks' : '⚠️ Reason'}
             </Text>
-          )}
-        </View>
+            <Text style={styles.remarksText}>{studentClearance.remarks}</Text>
+          </View>
+        )}
       </Card>
 
       {/* Timeline */}
@@ -136,52 +114,7 @@ const ClearanceDetailScreen: React.FC<ClearanceDetailScreenProps> = ({
         )}
       </Card>
 
-      {/* Approval Steps */}
-      <Text style={styles.stepsTitle}>📋 Approval Steps</Text>
 
-      <FlatList
-        data={studentClearance.parts}
-        keyExtractor={(item, index) => index.toString()}
-        scrollEnabled={false}
-        renderItem={({ item, index }) => (
-          <Card
-            style={[
-              styles.stepCard,
-              item.status === 'rejected' && styles.stepCardRejected,
-            ]}
-          >
-            <View style={styles.stepHeader}>
-              <View style={styles.stepInfo}>
-                <Text style={styles.stepNumber}>Step {index + 1}</Text>
-                <Text style={styles.stepName}>{item.name}</Text>
-                <Text style={styles.stepRole}>{item.staffRole}</Text>
-              </View>
-              <StatusBadge status={item.status} />
-            </View>
-
-            {item.remarks && (
-              <View
-                style={[
-                  styles.remarksContainer,
-                  item.status === 'rejected' && styles.remarksRejected,
-                ]}
-              >
-                <Text style={styles.remarksLabel}>
-                  {item.status === 'approved' ? '✍️ Remarks' : '⚠️ Reason'}
-                </Text>
-                <Text style={styles.remarksText}>{item.remarks}</Text>
-              </View>
-            )}
-
-            {item.approvedAt && (
-              <Text style={styles.approvedAt}>
-                {item.status === 'approved' ? '✅ Approved' : '❌ Rejected'} on{' '}
-                {new Date(item.approvedAt).toLocaleString()}
-              </Text>
-            )}
-          </Card>
-        )}
-      />
 
       {/* Action */}
       {hasRejection && (

@@ -27,7 +27,7 @@ const StudentDashboardScreen: React.FC<StudentDashboardScreenProps> = ({
   navigation,
 }) => {
   const { user, logout } = useAuth();
-  const { clearances, studentClearances } = useApp();
+  const { clearances, studentClearances, staffRoles } = useApp();
 
   // Get clearances available to this student's department
   const availableClearances = clearances.filter(c =>
@@ -49,19 +49,16 @@ const StudentDashboardScreen: React.FC<StudentDashboardScreenProps> = ({
   };
 
   // Calculate progress stats
-  let totalParts = 0;
-  let approvedParts = 0;
-  let rejectedParts = 0;
+  let totalClearances = submittedClearances.length;
+  let approvedClearances = 0;
+  let rejectedClearances = 0;
 
   submittedClearances.forEach(sc => {
-    sc.parts.forEach(part => {
-      totalParts++;
-      if (part.status === 'approved') approvedParts++;
-      if (part.status === 'rejected') rejectedParts++;
-    });
+    if (sc.status === 'approved') approvedClearances++;
+    if (sc.status === 'rejected') rejectedClearances++;
   });
 
-  const pendingParts = totalParts - approvedParts - rejectedParts;
+  const pendingClearances = totalClearances - approvedClearances - rejectedClearances;
 
   return (
     <ScrollView style={styles.container}>
@@ -90,13 +87,13 @@ const StudentDashboardScreen: React.FC<StudentDashboardScreenProps> = ({
 
           <Card style={styles.statCard}>
             <Text style={styles.statIcon}>✅</Text>
-            <Text style={styles.statValue}>{approvedParts}</Text>
+            <Text style={styles.statValue}>{approvedClearances}</Text>
             <Text style={styles.statLabel}>Approved</Text>
           </Card>
 
           <Card style={styles.statCard}>
             <Text style={styles.statIcon}>⏳</Text>
-            <Text style={styles.statValue}>{pendingParts}</Text>
+            <Text style={styles.statValue}>{pendingClearances}</Text>
             <Text style={styles.statLabel}>Pending</Text>
           </Card>
         </View>
@@ -127,12 +124,10 @@ const StudentDashboardScreen: React.FC<StudentDashboardScreenProps> = ({
                         Submitted: {new Date(item.submittedAt).toLocaleDateString()}
                       </Text>
                       <View style={styles.partsStatusContainer}>
-                        {item.parts.map((part, idx) => (
-                          <View key={idx} style={styles.partStatusItem}>
-                            <StatusBadge status={part.status} size="small" />
-                            <Text style={styles.partStatusText}>{part.name}</Text>
-                          </View>
-                        ))}
+                        <View style={styles.partStatusItem}>
+                          <StatusBadge status={item.status} size="small" />
+                          <Text style={styles.partStatusText}>{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</Text>
+                        </View>
                       </View>
                     </View>
                     <Text style={styles.arrow}>→</Text>
@@ -168,14 +163,9 @@ const StudentDashboardScreen: React.FC<StudentDashboardScreenProps> = ({
                       <Text style={styles.availableDescription}>
                         {item.description}
                       </Text>
-                      <Text style={styles.partCount}>
-                        {item.parts.length} step{item.parts.length !== 1 ? 's' : ''}
+                      <Text style={styles.partListItem}>
+                        Assigned to: {staffRoles.find(r => r.id === item.staffRole)?.name || item.staffRole}
                       </Text>
-                      {item.parts.map((part, idx) => (
-                        <Text key={idx} style={styles.partListItem}>
-                          • {part.name} ({part.staffRole})
-                        </Text>
-                      ))}
                     </View>
                     {!isSubmitted && (
                       <Button

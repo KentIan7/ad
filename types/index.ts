@@ -14,21 +14,12 @@ export interface User {
   staffRole?: string; // For staff (e.g., "IT Office", "Registrar")
 }
 
-export interface ClearancePart {
-  id: string;
-  name: string;
-  staffRole: string; // Which staff role approves this
-  status: ClearanceStatus;
-  remarks?: string;
-  approvedBy?: string; // ID of staff member who approved/rejected
-  approvedAt?: string; // ISO date string
-}
 
 export interface Clearance {
   id: string;
   name: string;
   description: string;
-  parts: ClearancePart[];
+  staffRole: string; // The single staff role that approves this clearance
   departmentsAllowed: string[]; // Which departments can access this clearance
   createdAt: string;
   updatedAt: string;
@@ -39,7 +30,10 @@ export interface StudentClearance {
   studentId: string;
   clearanceId: string;
   clearance: Clearance;
-  parts: ClearancePart[];
+  status: ClearanceStatus;
+  remarks?: string;
+  approvedBy?: string; // ID of staff member who approved/rejected
+  approvedAt?: string; // ISO date string
   submittedAt: string;
   completedAt?: string;
 }
@@ -73,12 +67,12 @@ export interface AppContextType {
   deleteStaffRole: (id: string) => void;
   
   // Clearance management (Admin)
-  createClearance: (name: string, description: string, parts: Omit<ClearancePart, 'id' | 'status' | 'remarks' | 'approvedBy' | 'approvedAt'>[], departmentsAllowed: string[]) => void;
-  updateClearance: (id: string, name: string, description: string, parts: ClearancePart[], departmentsAllowed: string[]) => void;
+  createClearance: (name: string, description: string, staffRole: string, departmentsAllowed: string[]) => void;
+  updateClearance: (id: string, name: string, description: string, staffRole: string, departmentsAllowed: string[]) => void;
   deleteClearance: (id: string) => void;
   
   // Student clearance management
   submitStudentClearance: (studentId: string, clearanceId: string) => void;
-  approveClearancePart: (clearanceId: string, partIndex: number, staffId: string, remarks?: string) => void;
-  rejectClearancePart: (clearanceId: string, partIndex: number, staffId: string, remarks: string) => void;
+  approveClearance: (studentClearanceId: string, staffId: string, remarks?: string) => void;
+  rejectClearance: (studentClearanceId: string, staffId: string, remarks: string) => void;
 }
