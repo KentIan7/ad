@@ -1,10 +1,10 @@
-import { initializeApp } from 'firebase/app';
+import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 // REPLACE WITH YOUR ACTUAL CONFIG FROM FIREBASE CONSOLE
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyBEHZnK_J-qvKqWd7Ly-MtCQYe_w0f-vjE",
   authDomain: "crud-c1d90.firebaseapp.com",
   projectId: "crud-c1d90",
@@ -19,5 +19,11 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+export const getNamedFirebaseApp = (name: string): FirebaseApp => {
+  return getApps().some((appInstance) => appInstance.name === name)
+    ? getApp(name)
+    : initializeApp(firebaseConfig, name);
+};
 
 export default app;

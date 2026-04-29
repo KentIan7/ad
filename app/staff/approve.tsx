@@ -44,7 +44,7 @@ const StaffApproveScreen: React.FC<StaffApproveScreenProps> = ({ route, navigati
       // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      approveClearance(studentClearanceId, user?.id || '', remarks);
+      await approveClearance(studentClearanceId, user?.id || '', remarks);
 
       Alert.alert('Success', 'Clearance approved successfully', [
         {
@@ -52,7 +52,7 @@ const StaffApproveScreen: React.FC<StaffApproveScreenProps> = ({ route, navigati
           onPress: () => navigation?.goBack(),
         },
       ]);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to approve clearance');
     } finally {
       setIsProcessing(false);
@@ -181,4 +181,3 @@ const styles = StyleSheet.create({
 });
 
 export default StaffApproveScreen;
-

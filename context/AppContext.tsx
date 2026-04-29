@@ -3,24 +3,39 @@
  * Manages all app data: clearances, staff roles, and student submissions
  */
 
-import { db } from '@/utils/firebase';
-import { AppContextType, Clearance, StaffRole, StudentClearance, User } from '@/types';
-import { 
-  addDoc, 
-  collection, 
-  deleteDoc, 
-  doc, 
-  onSnapshot, 
-  query, 
-  updateDoc 
+import { AppContextType, Clearance, Department, StaffRole, StudentClearance, StudentRegistration, User } from '@/types';
+import { db, getNamedFirebaseApp } from '@/utils/firebase';
+import {
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    onSnapshot,
+    query,
+    setDoc,
+    where,
+    getDocs,
+    updateDoc
 } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail, getAuth, signOut } from 'firebase/auth';
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 
 export const AppContext = createContext<AppContextType>({
   users: [],
   clearances: [],
+  departments: [],
   staffRoles: [],
+  pendingStudents: [],
   studentClearances: [],
+  approvePendingStudent: async () => {},
+  rejectPendingStudent: async () => {},
+  updateStudentDepartment: async () => {},
+  createStaffAccount: async () => {},
+  createDepartment: () => {},
+  updateDepartment: () => {},
+  archiveDepartment: () => {},
+  restoreDepartment: () => {},
+  deleteDepartment: () => {},
   createStaffRole: () => {},
   updateStaffRole: () => {},
   deleteStaffRole: () => {},
@@ -35,8 +50,68 @@ export const AppContext = createContext<AppContextType>({
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [clearances, setClearances] = useState<Clearance[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [staffRoles, setStaffRoles] = useState<StaffRole[]>([]);
+  const [pendingStudents, setPendingStudents] = useState<StudentRegistration[]>([]);
   const [studentClearances, setStudentClearances] = useState<StudentClearance[]>([]);
+
+  const createAssignedStudentClearances = useCallback(
+    async (clearanceId: string, clearance: Clearance, targetStudentId?: string, targetStudent?: User) => {
+      const candidateStudents = targetStudent ? [{ ...targetStudent, id: targetStudentId || targetStudent.id }] : users;
+      const eligibleStudents = candidateStudents.filter((currentUser) => {
+        if (currentUser.role !== 'student' || !currentUser.department) return false;
+        if (targetStudentId && currentUser.id !== targetStudentId) return false;
+        return clearance.departmentsAllowed.includes(currentUser.department);
+      });
+
+      if (eligibleStudents.length === 0) return;
+
+      const existingSnapshot = await getDocs(
+        query(collection(db, 'studentClearances'), where('clearanceId', '==', clearanceId))
+      );
+      const existingStudentIds = new Set(
+        existingSnapshot.docs.map((studentClearanceDoc) => {
+          const data = studentClearanceDoc.data() as StudentClearance;
+          return data.studentId;
+        })
+      );
+      const now = new Date().toISOString();
+
+      await Promise.all(
+        eligibleStudents
+          .filter((student) => !existingStudentIds.has(student.id))
+          .map((student) =>
+            addDoc(collection(db, 'studentClearances'), {
+              studentId: student.id,
+              clearanceId,
+              clearance,
+              status: 'pending' as const,
+              submittedAt: now,
+            })
+          )
+      );
+    },
+    [users]
+  );
+
+  const syncAssignedStudentClearances = useCallback(
+    async (clearanceId: string, clearance: Clearance) => {
+      await createAssignedStudentClearances(clearanceId, clearance);
+
+      const existingSnapshot = await getDocs(
+        query(collection(db, 'studentClearances'), where('clearanceId', '==', clearanceId))
+      );
+
+      await Promise.all(
+        existingSnapshot.docs.map((studentClearanceDoc) =>
+          updateDoc(doc(db, 'studentClearances', studentClearanceDoc.id), {
+            clearance,
+          })
+        )
+      );
+    },
+    [createAssignedStudentClearances]
+  );
 
   // Real-time listeners
   useEffect(() => {
@@ -48,8 +123,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setClearances(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Clearance)));
     });
 
+    const unsubDepartments = onSnapshot(collection(db, 'departments'), (snapshot) => {
+      setDepartments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department)));
+    });
+
     const unsubStaffRoles = onSnapshot(collection(db, 'staffRoles'), (snapshot) => {
       setStaffRoles(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffRole)));
+    });
+
+    const unsubPendingStudents = onSnapshot(collection(db, 'pendingStudents'), (snapshot) => {
+      setPendingStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentRegistration)));
     });
 
     const unsubStudentClearances = onSnapshot(collection(db, 'studentClearances'), (snapshot) => {
@@ -59,9 +142,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       unsubUsers();
       unsubClearances();
+      unsubDepartments();
       unsubStaffRoles();
+      unsubPendingStudents();
       unsubStudentClearances();
     };
+  }, []);
+
+  // Department Management
+  const createDepartment = useCallback(async (name: string, description: string) => {
+    try {
+      await addDoc(collection(db, 'departments'), {
+        name,
+        description,
+        status: 'active' as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error creating department:", error);
+      throw error;
+    }
+  }, []);
+
+  const updateDepartment = useCallback(async (id: string, name: string, description: string) => {
+    try {
+      await updateDoc(doc(db, 'departments', id), {
+        name,
+        description,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error updating department:", error);
+      throw error;
+    }
+  }, []);
+
+  const archiveDepartment = useCallback(async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'departments', id), {
+        status: 'archived' as const,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error archiving department:", error);
+      throw error;
+    }
+  }, []);
+
+  const restoreDepartment = useCallback(async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'departments', id), {
+        status: 'active' as const,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error restoring department:", error);
+      throw error;
+    }
+  }, []);
+
+  const deleteDepartment = useCallback(async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'departments', id));
+    } catch (error) {
+      console.error("Error deleting department:", error);
+      throw error;
+    }
   }, []);
 
   // Staff Role Management
@@ -108,38 +255,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       departmentsAllowed: string[]
     ) => {
       try {
-        await addDoc(collection(db, 'clearances'), {
+        const now = new Date().toISOString();
+        const docRef = await addDoc(collection(db, 'clearances'), {
           name,
           description,
           staffRole,
           departmentsAllowed,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: now,
+          updatedAt: now,
+        });
+        await createAssignedStudentClearances(docRef.id, {
+          id: docRef.id,
+          name,
+          description,
+          staffRole,
+          departmentsAllowed,
+          createdAt: now,
+          updatedAt: now,
         });
       } catch (error) {
         console.error("Error creating clearance:", error);
         throw error;
       }
     },
-    []
+    [createAssignedStudentClearances]
   );
 
   const updateClearance = useCallback(
     async (id: string, name: string, description: string, staffRole: string, departmentsAllowed: string[]) => {
       try {
+        const now = new Date().toISOString();
+        const updatedClearance = {
+          id,
+          name,
+          description,
+          staffRole,
+          departmentsAllowed,
+          createdAt: clearances.find((clearance) => clearance.id === id)?.createdAt || now,
+          updatedAt: now,
+        };
+
         await updateDoc(doc(db, 'clearances', id), {
           name,
           description,
           staffRole,
           departmentsAllowed,
-          updatedAt: new Date().toISOString(),
+          updatedAt: now,
         });
+        await syncAssignedStudentClearances(id, updatedClearance);
       } catch (error) {
         console.error("Error updating clearance:", error);
         throw error;
       }
     },
-    []
+    [clearances, syncAssignedStudentClearances]
   );
 
   const deleteClearance = useCallback(async (id: string) => {
@@ -198,13 +367,173 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [studentClearances]
   );
 
+  // Pending Student Management
+  const approvePendingStudent = useCallback(async (registrationId: string) => {
+    try {
+      const registration = pendingStudents.find(p => p.id === registrationId);
+      if (!registration) throw new Error('Registration not found');
+      if (!registration.authUid) throw new Error('Registration is missing the student auth account reference');
+      if (!registration.department) throw new Error('Registration is missing the selected department');
+
+      const now = new Date().toISOString();
+
+      const existingUserDocs = await getDocs(
+        query(collection(db, 'users'), where('email', '==', registration.email))
+      );
+      const conflictingUser = existingUserDocs.docs.find((userDoc) => userDoc.id !== registration.authUid);
+      if (conflictingUser) {
+        throw new Error('A different user account already uses this email.');
+      }
+
+      const userData: Omit<User, 'id'> = {
+        name: registration.name,
+        email: registration.email,
+        role: 'student' as const,
+        department: registration.department,
+        phone: registration.phone || '',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await setDoc(doc(db, 'users', registration.authUid), userData, { merge: true });
+
+      await Promise.all(
+        clearances
+          .filter((clearance) => clearance.departmentsAllowed.includes(registration.department || ''))
+          .map((clearance) =>
+            createAssignedStudentClearances(clearance.id, clearance, registration.authUid, {
+              id: registration.authUid,
+              ...userData,
+            })
+          )
+      );
+
+      await updateDoc(doc(db, 'pendingStudents', registrationId), {
+        status: 'approved' as const,
+        approvedAt: now,
+        approvedBy: 'admin', // Could be improved to track which admin approved
+        rejectionReason: '',
+      });
+    } catch (error) {
+      console.error("Error approving pending student:", error);
+      throw error;
+    }
+  }, [clearances, createAssignedStudentClearances, pendingStudents]);
+
+  const rejectPendingStudent = useCallback(async (registrationId: string, reason: string) => {
+    try {
+      await updateDoc(doc(db, 'pendingStudents', registrationId), {
+        status: 'rejected' as const,
+        rejectionReason: reason,
+        rejectedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error rejecting pending student:", error);
+      throw error;
+    }
+  }, []);
+
+  const updateStudentDepartment = useCallback(async (studentId: string, department: string) => {
+    try {
+      await updateDoc(doc(db, 'users', studentId), {
+        department,
+        updatedAt: new Date().toISOString(),
+      });
+
+      await Promise.all(
+        clearances
+          .filter((clearance) => clearance.departmentsAllowed.includes(department))
+          .map((clearance) =>
+            createAssignedStudentClearances(clearance.id, clearance, studentId, {
+              ...(users.find((currentUser) => currentUser.id === studentId) || {
+                id: studentId,
+                name: '',
+                email: '',
+                role: 'student' as const,
+              }),
+              department,
+              role: 'student' as const,
+            })
+          )
+      );
+    } catch (error) {
+      console.error("Error updating student department:", error);
+      throw error;
+    }
+  }, [clearances, createAssignedStudentClearances, users]);
+
+  const createStaffAccount = useCallback(async (data: {
+    name: string;
+    email: string;
+    password: string;
+    staffRole: string;
+    phone?: string;
+  }) => {
+    const name = data.name.trim();
+    const email = data.email.trim().toLowerCase();
+    const password = data.password;
+    const staffRole = data.staffRole.trim();
+    const phone = data.phone?.trim() || '';
+
+    if (!name || !email || !password || !staffRole) {
+      throw new Error('Name, email, password, and staff role are required.');
+    }
+
+    if (password.length < 6) {
+      throw new Error('Password must be at least 6 characters.');
+    }
+
+    const signInMethods = await fetchSignInMethodsForEmail(getAuth(), email);
+    if (signInMethods.length > 0) {
+      throw new Error('An account with this email already exists.');
+    }
+
+    const duplicateUsers = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
+    if (!duplicateUsers.empty) {
+      throw new Error('A user record with this email already exists.');
+    }
+
+    const secondaryApp = getNamedFirebaseApp('staff-account-creator');
+    const secondaryAuth = getAuth(secondaryApp);
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    const now = new Date().toISOString();
+
+    try {
+      await setDoc(doc(db, 'users', credential.user.uid), {
+        name,
+        email,
+        role: 'staff' as const,
+        staffRole,
+        phone,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (error) {
+      console.error("Error creating staff account document:", error);
+      throw error;
+    } finally {
+      await signOut(secondaryAuth);
+    }
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
         users,
         clearances,
+        departments,
         staffRoles,
+        pendingStudents,
         studentClearances,
+        approvePendingStudent,
+        rejectPendingStudent,
+        updateStudentDepartment,
+        createStaffAccount,
+        createDepartment,
+        updateDepartment,
+        archiveDepartment,
+        restoreDepartment,
+        deleteDepartment,
         createStaffRole,
         updateStaffRole,
         deleteStaffRole,

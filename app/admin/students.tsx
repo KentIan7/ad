@@ -1,15 +1,20 @@
 /**
  * Admin Students Screen
- * View all students and their clearance status
+ * View all students, their clearance status, and manage department assignments
  */
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
-import React from 'react';
+import { Department, StudentClearance, User } from '@/types';
+import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   FlatList,
+  Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -21,44 +26,94 @@ interface AdminStudentsScreenProps {
 }
 
 const AdminStudentsScreen: React.FC<AdminStudentsScreenProps> = ({ navigation }) => {
-  const { users, studentClearances } = useApp();
+  const { users, studentClearances, departments, updateStudentDepartment } = useApp();
+  const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
 
-  // Get all students
-  const students = users.filter(u => u.role === 'student');
+  const students = useMemo(() => users.filter((user) => user.role === 'student'), [users]);
+  const activeDepartments = departments.filter((department) => department.status === 'active');
 
-  // Get clearance status for each student
   const getStudentClearances = (studentId: string) => {
-    return studentClearances.filter(sc => sc.studentId === studentId);
+    return studentClearances.filter((clearance) => clearance.studentId === studentId);
   };
 
-  const getClearanceStatus = (studentClearances: any[]) => {
-    if (studentClearances.length === 0) return 'No clearances';
-
-    const allCompleted = studentClearances.every(sc => sc.status === 'approved');
-
-    if (allCompleted) return 'Complete';
+  const getClearanceStatus = (items: StudentClearance[]) => {
+    if (items.length === 0) return 'No clearances';
+    if (items.every((clearance) => clearance.status === 'approved')) return 'Complete';
+    if (items.some((clearance) => clearance.status === 'rejected')) return 'Needs Attention';
     return 'In Progress';
   };
 
-  const getProgress = (studentClearances: any[]) => {
-    if (studentClearances.length === 0) return 0;
+  const getProgress = (items: StudentClearance[]) => {
+    if (items.length === 0) return 0;
+    const approved = items.filter((clearance) => clearance.status === 'approved').length;
+    return Math.round((approved / items.length) * 100);
+  };
 
-    let total = studentClearances.length;
-    let approved = studentClearances.filter(sc => sc.status === 'approved').length;
+  const getDepartmentName = (departmentId?: string) => {
+    if (!departmentId) return 'Unassigned';
+    return departments.find((department) => department.id === departmentId)?.name || 'Unknown Department';
+  };
 
-    return Math.round((approved / total) * 100);
+  const openDepartmentModal = (student: User) => {
+    setSelectedStudent(student);
+    setSelectedDepartment(student.department || '');
+    setShowDepartmentModal(true);
+  };
+
+  const handleSaveDepartment = async () => {
+    if (!selectedStudent?.id) {
+      Alert.alert('Error', 'Student record not found');
+      return;
+    }
+
+    if (!selectedDepartment) {
+      Alert.alert('Error', 'Please select a department');
+      return;
+    }
+
+    try {
+      await updateStudentDepartment(selectedStudent.id, selectedDepartment);
+      setShowDepartmentModal(false);
+      setSelectedStudent(null);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Success', 'Student department updated successfully');
+      } else {
+        window.alert('Student department updated successfully');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update department');
+    }
+  };
+
+  const renderDepartmentOption = (department: Department) => {
+    const isSelected = selectedDepartment === department.id;
+
+    return (
+      <TouchableOpacity
+        key={department.id}
+        style={[styles.departmentOption, isSelected && styles.departmentOptionSelected]}
+        onPress={() => setSelectedDepartment(department.id)}
+      >
+        <Text
+          style={[styles.departmentOptionText, isSelected && styles.departmentOptionTextSelected]}
+        >
+          {department.name}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
           <Text style={styles.title}>Students</Text>
         </View>
-        <Text style={styles.subtitle}>{students.length} student{students.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.subtitle}>
+          {students.length} student{students.length !== 1 ? 's' : ''}
+        </Text>
       </View>
 
       {students.length === 0 ? (
@@ -68,7 +123,7 @@ const AdminStudentsScreen: React.FC<AdminStudentsScreenProps> = ({ navigation })
       ) : (
         <FlatList
           data={students}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
             const clearances = getStudentClearances(item.id);
             const status = getClearanceStatus(clearances);
@@ -79,7 +134,7 @@ const AdminStudentsScreen: React.FC<AdminStudentsScreenProps> = ({ navigation })
                 <View style={styles.studentCard}>
                   <View style={styles.studentInfo}>
                     <Text style={styles.studentName}>{item.name}</Text>
-                    <Text style={styles.studentDept}>{item.department}</Text>
+                    <Text style={styles.studentDept}>{getDepartmentName(item.department)}</Text>
                     <Text style={styles.studentEmail}>{item.email}</Text>
                   </View>
 
@@ -93,34 +148,77 @@ const AdminStudentsScreen: React.FC<AdminStudentsScreenProps> = ({ navigation })
                       <Text style={styles.statLabel}>Progress</Text>
                       <Text style={styles.statValue}>{progress}%</Text>
                     </View>
-
-                    <View style={styles.statusContainer}>
-                      <StatusBadge
-                        status={status === 'Complete' ? 'approved' : 'pending'}
-                        size="small"
-                      />
-                    </View>
                   </View>
                 </View>
 
-                {clearances.length > 0 && (
+                <View style={styles.studentFooter}>
+                  <StatusBadge
+                    status={status === 'Complete' ? 'approved' : status === 'Needs Attention' ? 'rejected' : 'pending'}
+                    size="small"
+                  />
+                  <Button
+                    title="Change Department"
+                    onPress={() => openDepartmentModal(item)}
+                    variant="secondary"
+                    size="small"
+                  />
+                </View>
+
+                {clearances.length > 0 ? (
                   <View style={styles.clearancesPreview}>
-                    {clearances.map((sc, idx) => (
-                      <View key={idx} style={styles.clearanceItem}>
-                        <Text style={styles.clearanceName}>{sc.clearance?.name || 'Unknown Clearance'}</Text>
+                    {clearances.map((clearance) => (
+                      <View key={clearance.id} style={styles.clearanceItem}>
+                        <Text style={styles.clearanceName}>
+                          {clearance.clearance?.name || 'Unknown Clearance'}
+                        </Text>
                         <View style={styles.partsPreview}>
-                          <StatusBadge status={sc.status} size="small" />
+                          <StatusBadge status={clearance.status} size="small" />
                         </View>
                       </View>
                     ))}
                   </View>
-                )}
+                ) : null}
               </Card>
             );
           }}
           contentContainerStyle={styles.listContent}
         />
       )}
+
+      <Modal
+        visible={showDepartmentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDepartmentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Update Student Department</Text>
+            <Text style={styles.modalSubtitle}>
+              {selectedStudent?.name} ({selectedStudent?.email})
+            </Text>
+
+            <View style={styles.departmentList}>
+              {activeDepartments.map(renderDepartmentOption)}
+            </View>
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                onPress={() => setShowDepartmentModal(false)}
+                variant="secondary"
+                style={styles.modalButton}
+              />
+              <Button
+                title="Save"
+                onPress={handleSaveDepartment}
+                variant="primary"
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -181,6 +279,7 @@ const styles = StyleSheet.create({
   },
   studentInfo: {
     flex: 1,
+    marginRight: Spacing.md,
   },
   studentName: {
     ...Typography.h3,
@@ -214,8 +313,11 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginTop: Spacing.xs,
   },
-  statusContainer: {
-    marginLeft: Spacing.sm,
+  studentFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   clearancesPreview: {
     marginTop: Spacing.md,
@@ -240,12 +342,59 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     alignItems: 'center',
   },
-  moreText: {
-    ...Typography.caption,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  modalTitle: {
+    ...Typography.h2,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  modalSubtitle: {
+    ...Typography.body,
     color: Colors.textLight,
-    marginLeft: Spacing.xs,
+    marginBottom: Spacing.lg,
+  },
+  departmentList: {
+    marginBottom: Spacing.lg,
+  },
+  departmentOption: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  departmentOptionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  departmentOptionText: {
+    ...Typography.body,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  departmentOptionTextSelected: {
+    color: Colors.textInverse,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  modalButton: {
+    flex: 1,
   },
 });
 
 export default AdminStudentsScreen;
-

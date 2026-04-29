@@ -53,7 +53,7 @@ const StudentSubmitScreen: React.FC<StudentSubmitScreenProps> = ({
         throw new Error('User not found');
       }
 
-      submitStudentClearance(user.id, clearanceId);
+      await submitStudentClearance(user.id, clearanceId);
 
       Alert.alert('Success', 'Clearance submitted successfully!', [
         {
@@ -61,7 +61,7 @@ const StudentSubmitScreen: React.FC<StudentSubmitScreenProps> = ({
           onPress: () => navigation?.navigate('StudentDashboard'),
         },
       ]);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to submit clearance');
     } finally {
       setIsProcessing(false);
@@ -109,7 +109,7 @@ const StudentSubmitScreen: React.FC<StudentSubmitScreenProps> = ({
         <Text style={styles.infoIcon}>ℹ️</Text>
         <Text style={styles.infoTitle}>What happens next?</Text>
         <Text style={styles.infoText}>
-          After you submit, the designated staff will review your request. You can track the status in real-time. If it is rejected, you'll receive details on what needs to be fixed.
+          After you submit, the designated staff will review your request. You can track the status in real-time. If it is rejected, you will receive details on what needs to be fixed.
         </Text>
       </Card>
 

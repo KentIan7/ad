@@ -3,16 +3,31 @@
  * Manages user login/logout and authentication state
  */
 
-import { auth, db } from '@/utils/firebase';
-import { AuthContextType, User } from '@/types';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  signOut,
-  sendPasswordResetEmail
-} from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { apiService } from '@/services/api';
+import { AuthContextType, User } from '@/types';
+import { auth, db } from '@/utils/firebase';
+import {
+    createUserWithEmailAndPassword,
+    EmailAuthProvider,
+    fetchSignInMethodsForEmail,
+    onAuthStateChanged,
+    reauthenticateWithCredential,
+    signInWithEmailAndPassword,
+    signOut,
+    updateEmail,
+    updatePassword
+} from 'firebase/auth';
+import {
+    addDoc,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    setDoc,
+    updateDoc,
+    where
+} from 'firebase/firestore';
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 
 export const AuthContext = createContext<AuthContextType>({
@@ -23,6 +38,8 @@ export const AuthContext = createContext<AuthContextType>({
   setUser: () => {},
   forgotPassword: async () => {},
   resetPassword: async () => {},
+  registerStudent: async () => {},
+  updateAccountSettings: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -78,7 +95,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
+
+      if (!userDoc.exists()) {
+        const pendingQuery = query(
+          collection(db, 'pendingStudents'),
+          where('authUid', '==', credential.user.uid)
+        );
+        const pendingSnapshot = await getDocs(pendingQuery);
+
+        if (!pendingSnapshot.empty) {
+          const registration = pendingSnapshot.docs[0].data();
+          await signOut(auth);
+
+          if (registration.status === 'pending') {
+            throw new Error('Your student registration is still pending admin approval.');
+          }
+
+          if (registration.status === 'rejected') {
+            const reason = registration.rejectionReason
+              ? ` Reason: ${registration.rejectionReason}`
+              : '';
+            throw new Error(`Your student registration was rejected.${reason}`);
+          }
+        }
+
+        await signOut(auth);
+        throw new Error('Your account is not active yet. Please contact an administrator.');
+      }
     } catch (error: any) {
       console.error('Login error:', error.message);
       throw error;
@@ -126,6 +171,148 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(newUser);
   }, []);
 
+  const registerStudent = useCallback(async (email: string, name: string, password: string, department: string, phone?: string) => {
+    setIsLoading(true);
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedName = name.trim();
+      const normalizedPhone = phone?.trim() || '';
+      const normalizedDepartment = department.trim();
+
+      if (!normalizedDepartment) {
+        throw new Error('Please select a department.');
+      }
+
+      const existingMethods = await fetchSignInMethodsForEmail(auth, normalizedEmail);
+      if (existingMethods.length > 0) {
+        throw new Error('An account with this email already exists.');
+      }
+
+      const duplicatePendingQuery = query(
+        collection(db, 'pendingStudents'),
+        where('email', '==', normalizedEmail)
+      );
+      const duplicatePendingSnapshot = await getDocs(duplicatePendingQuery);
+      const duplicatePending = duplicatePendingSnapshot.docs.find(
+        (pendingDoc) => pendingDoc.data().status !== 'rejected'
+      );
+
+      if (duplicatePending) {
+        const status = duplicatePending.data().status;
+        if (status === 'pending') {
+          throw new Error('A registration with this email is already waiting for approval.');
+        }
+
+        throw new Error('This student account has already been approved.');
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+
+      await addDoc(collection(db, 'pendingStudents'), {
+        authUid: userCredential.user.uid,
+        email: normalizedEmail,
+        name: normalizedName,
+        phone: normalizedPhone,
+        department: normalizedDepartment,
+        status: 'pending' as const,
+        createdAt: new Date().toISOString(),
+      });
+
+      await signOut(auth);
+    } catch (error: any) {
+      console.error('Registration error:', error.message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const updateAccountSettings = useCallback(async (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => {
+    if (!auth.currentUser || !user) {
+      throw new Error('You must be logged in to update your account.');
+    }
+
+    setIsLoading(true);
+    try {
+      const nextName = data.name.trim();
+      const nextEmail = data.email.trim().toLowerCase();
+      const nextPhone = data.phone?.trim() || '';
+      const nextPassword = data.newPassword?.trim() || '';
+      const currentPassword = data.currentPassword?.trim() || '';
+      const emailChanged = nextEmail !== user.email;
+      const passwordChanged = nextPassword.length > 0;
+
+      if (!nextName) {
+        throw new Error('Name is required.');
+      }
+
+      if (!nextEmail.includes('@')) {
+        throw new Error('Please enter a valid email.');
+      }
+
+      if (passwordChanged && nextPassword.length < 6) {
+        throw new Error('New password must be at least 6 characters.');
+      }
+
+      if ((emailChanged || passwordChanged) && !currentPassword) {
+        throw new Error('Current password is required to change your email or password.');
+      }
+
+      if (emailChanged || passwordChanged) {
+        const credential = EmailAuthProvider.credential(auth.currentUser.email || user.email, currentPassword);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+      }
+
+      if (emailChanged) {
+        const methods = await fetchSignInMethodsForEmail(auth, nextEmail);
+        const emailInUseByAnotherAccount =
+          methods.length > 0 && nextEmail !== (auth.currentUser.email || '').toLowerCase();
+        if (emailInUseByAnotherAccount) {
+          throw new Error('Another account already uses that email.');
+        }
+        await updateEmail(auth.currentUser, nextEmail);
+      }
+
+      if (passwordChanged) {
+        await updatePassword(auth.currentUser, nextPassword);
+      }
+
+      const updatedUser: User = {
+        ...user,
+        name: nextName,
+        email: nextEmail,
+        phone: nextPhone,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await updateDoc(doc(db, 'users', user.id), {
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone || '',
+        updatedAt: updatedUser.updatedAt,
+      });
+
+      setUser(updatedUser);
+    } catch (error: any) {
+      console.error('Update account settings error:', error.message);
+      if (error.code === 'auth/invalid-credential') {
+        throw new Error('Current password is incorrect.');
+      }
+      if (error.code === 'auth/requires-recent-login') {
+        throw new Error('Please log out and log back in, then try again.');
+      }
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -136,6 +323,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser: updateUser,
         forgotPassword,
         resetPassword,
+        registerStudent,
+        updateAccountSettings,
       }}
     >
       {children}

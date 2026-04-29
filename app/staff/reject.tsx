@@ -51,7 +51,7 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
       // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      rejectClearance(studentClearanceId, user?.id || '', remarks);
+      await rejectClearance(studentClearanceId, user?.id || '', remarks);
 
       Alert.alert('Success', 'Clearance rejected successfully', [
         {
@@ -59,7 +59,7 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
           onPress: () => navigation?.goBack(),
         },
       ]);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to reject clearance');
     } finally {
       setIsProcessing(false);

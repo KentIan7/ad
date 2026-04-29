@@ -1,251 +1,538 @@
 /**
  * Admin Dashboard Screen
- * Main dashboard for admin users to manage staff roles and clearances
+ * Main dashboard for admin users to monitor departments, staff, clearances, and pending registrations.
  */
 
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Colors, Spacing, Typography } from '@/constants/colors';
+import { BorderRadius, Spacing, Typography } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
-import React, { useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useMemo, useState } from 'react';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 interface AdminDashboardScreenProps {
   navigation?: any;
 }
 
+type OverviewTab = 'departments' | 'roles' | 'clearances';
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  description: string;
+  actionLabel: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  isAttention?: boolean;
+  onPress?: () => void;
+  isMobile?: boolean;
+}
+
 const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ navigation }) => {
-  const { user, logout } = useAuth();
-  const { staffRoles, clearances } = useApp();
-  const [expandedStaffRoles, setExpandedStaffRoles] = useState(false);
-  const [expandedClearances, setExpandedClearances] = useState(false);
+  const { staffRoles, clearances, departments, pendingStudents, users } = useApp();
+  const [activeOverviewTab, setActiveOverviewTab] = useState<OverviewTab>('departments');
+  const { width } = useWindowDimensions();
+  const [showOverview, setShowOverview] = useState(width >= 760);
+  const isMobile = width < 600;
 
-  const handleLogout = () => {
-    logout();
-  };
+  const activeDepartments = useMemo(
+    () => departments.filter((department) => department.status === 'active'),
+    [departments]
+  );
+  const pendingCount = pendingStudents.filter((student) => student.status === 'pending').length;
+  const staffCount = users.filter((currentUser) => currentUser.role === 'staff').length;
+  const useWideGrid = width >= 980;
 
-  const stats = [
-    { label: 'Staff Roles', value: staffRoles.length, icon: '👥' },
-    { label: 'Clearances', value: clearances.length, icon: '📋' },
+  const stats: StatCardProps[] = [
+    {
+      title: 'Departments',
+      value: activeDepartments.length,
+      description: `${activeDepartments.length} Departments`,
+      actionLabel: 'Manage',
+      icon: 'office-building-outline',
+      onPress: () => navigation?.navigate('AdminDepartments'),
+    },
+    {
+      title: 'Staff',
+      value: staffCount,
+      description: `${staffCount} Staff Accounts`,
+      actionLabel: 'View all',
+      icon: 'account-tie-outline',
+      onPress: () => navigation?.navigate('AdminStaffAccounts'),
+    },
+    {
+      title: 'Clearances',
+      value: clearances.length,
+      description: `${clearances.length} Clearance Types`,
+      actionLabel: 'Manage',
+      icon: 'clipboard-check-outline',
+      onPress: () => navigation?.navigate('AdminClearances'),
+    },
+    {
+      title: 'Pending',
+      value: pendingCount,
+      description: pendingCount === 1 ? '1 Pending Registration' : `${pendingCount} Pending Registrations`,
+      actionLabel: 'Review',
+      icon: 'clock-alert-outline',
+      isAttention: pendingCount > 0,
+      onPress: () => navigation?.navigate('AdminPendingStudents'),
+    },
   ];
 
+  const overviewTabs: { key: OverviewTab; label: string }[] = [
+    { key: 'departments', label: 'Departments' },
+    { key: 'roles', label: 'Roles' },
+    { key: 'clearances', label: 'Clearances' },
+  ];
+
+  const overviewItems = useMemo(() => {
+    if (activeOverviewTab === 'departments') {
+      return activeDepartments.slice(0, 5).map((department) => ({
+        id: department.id,
+        title: department.name,
+        description: department.description || 'No description provided',
+        meta: 'Active department',
+      }));
+    }
+
+    if (activeOverviewTab === 'roles') {
+      return staffRoles.slice(0, 5).map((role) => ({
+        id: role.id,
+        title: role.name,
+        description: role.description || 'No description provided',
+        meta: 'Staff role',
+      }));
+    }
+
+    return clearances.slice(0, 5).map((clearance) => ({
+      id: clearance.id,
+      title: clearance.name,
+      description: clearance.description || 'No description provided',
+      meta: `${clearance.departmentsAllowed.length} department${clearance.departmentsAllowed.length === 1 ? '' : 's'}`,
+    }));
+  }, [activeDepartments, activeOverviewTab, clearances, staffRoles]);
+
+  const emptyOverviewText =
+    activeOverviewTab === 'departments'
+      ? 'No active departments yet.'
+      : activeOverviewTab === 'roles'
+        ? 'No staff roles created yet.'
+        : 'No clearances created yet.';
+
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.welcome}>Welcome, {user?.name}</Text>
-          <Text style={styles.role}>Administrator</Text>
-        </View>
-        <Button
-          title="Logout"
-          onPress={handleLogout}
-          variant="danger"
-          size="small"
-        />
-      </View>
+    <View style={[styles.container, isMobile && styles.containerMobile]}>
+      {isMobile ? (
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentMobile} scrollEnabled={false}>
+          <View style={[styles.pageHeader, styles.pageHeaderMobile]}>
+            <Text style={styles.pageTitleMobile}>Dashboard</Text>
+          </View>
 
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        {stats.map((stat, index) => (
-          <Card key={index} style={styles.statCard}>
-            <Text style={styles.statIcon}>{stat.icon}</Text>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-          </Card>
-        ))}
-      </View>
+          <View style={[styles.statsGrid, styles.statsGridMobile]}>
+            {stats.map((stat) => (
+              <View key={stat.title} style={[styles.statGridItem, styles.statGridItemCompact]}>
+                <StatCard {...stat} isMobile={isMobile} />
+              </View>
+            ))}
+          </View>
 
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📋 Quick Actions</Text>
-        
-        <Button
-          title="Manage Staff Roles"
-          onPress={() => navigation?.navigate('AdminStaffRoles')}
-          variant="primary"
-          style={styles.actionButton}
-        />
-        
-        <Button
-          title="Manage Clearances"
-          onPress={() => navigation?.navigate('AdminClearances')}
-          variant="primary"
-          style={styles.actionButton}
-        />
-        
-        <Button
-          title="View All Students"
-          onPress={() => navigation?.navigate('AdminStudents')}
-          variant="secondary"
-          style={styles.actionButton}
-        />
-      </View>
+          {showOverview && !isMobile && (
+            <View style={styles.overviewSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Quick Overview</Text>
+                <Text style={styles.sectionSubtitle}>A short preview of your core management lists.</Text>
+              </View>
 
-      {/* Recent Staff Roles */}
-      <View style={styles.section}>
-        <TouchableOpacity 
-          style={styles.dropdownHeader} 
-          onPress={() => setExpandedStaffRoles(!expandedStaffRoles)}
-        >
-          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>👥 Staff Roles</Text>
-          <Text style={styles.dropdownIcon}>{expandedStaffRoles ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-        
-        {expandedStaffRoles && (
-          staffRoles.length === 0 ? (
-            <Card style={styles.dropdownContentCard}>
-              <Text style={styles.emptyText}>No staff roles created yet</Text>
-            </Card>
-          ) : (
-            <FlatList
-              data={staffRoles.slice(0, 3)}
-              keyExtractor={item => item.id}
-              scrollEnabled={false}
-              style={styles.dropdownList}
-              renderItem={({ item }) => (
-                <Card>
-                  <Text style={styles.itemTitle}>{item.name}</Text>
-                  <Text style={styles.itemDescription}>{item.description}</Text>
-                </Card>
+              <View style={styles.tabs}>
+                {overviewTabs.map((tab) => {
+                  const isActive = activeOverviewTab === tab.key;
+                  return (
+                    <TouchableOpacity
+                      key={tab.key}
+                      style={[styles.tab, isActive && styles.tabActive]}
+                      onPress={() => setActiveOverviewTab(tab.key)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Card style={styles.overviewCard}>
+                {overviewItems.length === 0 ? (
+                  <Text style={styles.emptyText}>{emptyOverviewText}</Text>
+                ) : (
+                  <FlatList
+                    data={overviewItems}
+                    keyExtractor={(item) => item.id}
+                    scrollEnabled={false}
+                    ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+                    renderItem={({ item }) => (
+                      <View style={styles.overviewItem}>
+                        <View style={styles.overviewItemText}>
+                          <Text style={styles.itemTitle}>{item.title}</Text>
+                          <Text style={styles.itemDescription}>{item.description}</Text>
+                        </View>
+                        <View style={styles.metaBadge}>
+                          <Text style={styles.metaBadgeText}>{item.meta}</Text>
+                        </View>
+                      </View>
+                    )}
+                  />
+                )}
+              </Card>
+            </View>
+          )}
+        </ScrollView>
+      ) : (
+        <ScrollView style={styles.content} contentContainerStyle={styles.content}>
+          <View style={[styles.pageHeader, width < 600 && styles.pageHeaderMobile]}>
+            <Text style={[styles.pageTitle, width < 600 && styles.pageTitleMobile]}>Dashboard</Text>
+            <Text style={[styles.pageSubtitle, width < 600 && styles.pageSubtitleMobile]}>Monitor the clearance workflow and jump into the areas that need attention.</Text>
+          </View>
+
+          <View style={styles.statsGrid}>
+            {stats.map((stat) => (
+              <View key={stat.title} style={[styles.statGridItem, useWideGrid ? styles.statGridItemWide : width < 600 ? styles.statGridItemSmall : styles.statGridItemMobile]}>
+                <StatCard {...stat} />
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.overviewSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Quick Overview</Text>
+              <Text style={styles.sectionSubtitle}>A short preview of your core management lists.</Text>
+            </View>
+
+            <View style={styles.tabs}>
+              {overviewTabs.map((tab) => {
+                const isActive = activeOverviewTab === tab.key;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[styles.tab, isActive && styles.tabActive]}
+                    onPress={() => setActiveOverviewTab(tab.key)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Card style={styles.overviewCard}>
+              {overviewItems.length === 0 ? (
+                <Text style={styles.emptyText}>{emptyOverviewText}</Text>
+              ) : (
+                <FlatList
+                  data={overviewItems}
+                  keyExtractor={(item) => item.id}
+                  scrollEnabled={false}
+                  ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+                  renderItem={({ item }) => (
+                    <View style={styles.overviewItem}>
+                      <View style={styles.overviewItemText}>
+                        <Text style={styles.itemTitle}>{item.title}</Text>
+                        <Text style={styles.itemDescription}>{item.description}</Text>
+                      </View>
+                      <View style={styles.metaBadge}>
+                        <Text style={styles.metaBadgeText}>{item.meta}</Text>
+                      </View>
+                    </View>
+                  )}
+                />
               )}
-            />
-          )
-        )}
-      </View>
-
-      {/* Recent Clearances */}
-      <View style={[styles.section, { marginBottom: Spacing.lg }]}>
-        <TouchableOpacity 
-          style={styles.dropdownHeader} 
-          onPress={() => setExpandedClearances(!expandedClearances)}
-        >
-          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>📋 Clearances</Text>
-          <Text style={styles.dropdownIcon}>{expandedClearances ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-
-        {expandedClearances && (
-          clearances.length === 0 ? (
-            <Card style={styles.dropdownContentCard}>
-              <Text style={styles.emptyText}>No clearances created yet</Text>
             </Card>
-          ) : (
-            <FlatList
-              data={clearances.slice(0, 3)}
-              keyExtractor={item => item.id}
-              scrollEnabled={false}
-              style={styles.dropdownList}
-              renderItem={({ item }) => (
-                <Card>
-                  <Text style={styles.itemTitle}>{item.name}</Text>
-                  <Text style={styles.itemDescription}>{item.description}</Text>
-                </Card>
-              )}
-            />
-          )
-        )}
-      </View>
-    </ScrollView>
+          </View>
+        </ScrollView>
+      )}
+    </View>
   );
 };
+
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  description,
+  actionLabel,
+  icon,
+  isAttention,
+  onPress,
+  isMobile,
+}) => (
+  <TouchableOpacity
+    style={[styles.statCard, isAttention && styles.statCardAttention, isMobile && styles.statCardMobile]}
+    onPress={onPress}
+    accessibilityRole="button"
+  >
+    <View style={styles.statCardHeader}>
+      <View style={[styles.statIcon, isAttention && styles.statIconAttention, isMobile && styles.statIconMobile]}>
+        <MaterialCommunityIcons name={icon} size={isMobile ? 18 : 22} color={isAttention ? '#c2410c' : '#2563eb'} />
+      </View>
+      <Text style={[styles.statTitle, isMobile && styles.statTitleMobile]}>{title}</Text>
+    </View>
+    <Text style={[styles.statValue, isMobile && styles.statValueMobile, isAttention && styles.statValueAttention]}>{value}</Text>
+    <Text style={[styles.statDescription, isMobile && styles.statDescriptionMobile]}>{description}</Text>
+    <View style={styles.statActionRow}>
+      <Text style={[styles.statAction, isMobile && styles.statActionMobile, isAttention && styles.statActionAttention]}>{actionLabel}</Text>
+      <MaterialCommunityIcons name="arrow-right" size={isMobile ? 14 : 16} color={isAttention ? '#c2410c' : '#2563eb'} />
+    </View>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f4f6f9',
   },
-  header: {
-    backgroundColor: Colors.primary,
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: Spacing.xl,
+  content: {
+    padding: 24,
+    paddingBottom: 40,
   },
-  welcome: {
-    ...Typography.h2,
-    color: Colors.textInverse,
-    marginBottom: Spacing.xs,
+  pageHeader: {
+    marginBottom: 24,
   },
-  role: {
+  pageHeaderMobile: {
+    marginBottom: 16,
+  },
+  pageTitle: {
+    ...Typography.h1,
+    color: '#0f172a',
+    marginBottom: 6,
+  },
+  pageTitleMobile: {
+    fontSize: 22,
+    marginBottom: 4,
+  },
+  pageSubtitle: {
     ...Typography.body,
-    color: Colors.textInverse,
-    opacity: 0.9,
+    color: '#64748b',
+    lineHeight: 20,
   },
-  statsContainer: {
+  pageSubtitleMobile: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  statsGrid: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.lg,
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
+    marginBottom: 24,
+  },
+  statGridItem: {
+    paddingHorizontal: 8,
+    marginBottom: 16,
+  },
+  statGridItemSmall: {
+    width: '100%',
+  },
+  statGridItemMobile: {
+    width: '50%',
+  },
+  statGridItemWide: {
+    width: '25%',
   },
   statCard: {
-    flex: 1,
+    minHeight: 176,
+    backgroundColor: '#ffffff',
+    borderRadius: BorderRadius.lg,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  statCardAttention: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+  },
+  statCardHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: Spacing.sm,
+    marginBottom: 18,
+    gap: 10,
   },
   statIcon: {
-    fontSize: 32,
-    marginBottom: Spacing.sm,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#dbeafe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statIconAttention: {
+    backgroundColor: '#ffedd5',
+  },
+  statTitle: {
+    flex: 1,
+    fontSize: 14,
+    color: '#475569',
+    fontWeight: '800',
   },
   statValue: {
-    ...Typography.h3,
-    color: Colors.primary,
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#0f172a',
+    marginBottom: 6,
   },
-  statLabel: {
-    ...Typography.caption,
-    color: Colors.textLight,
-    marginTop: Spacing.xs,
+  statValueAttention: {
+    color: '#9a3412',
   },
-  section: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.lg,
+  statDescription: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 18,
+  },
+  statActionRow: {
+    marginTop: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statAction: {
+    fontSize: 13,
+    color: '#2563eb',
+    fontWeight: '800',
+  },
+  statActionAttention: {
+    color: '#c2410c',
+  },
+  overviewSection: {
+    marginTop: 4,
+  },
+  sectionHeader: {
+    marginBottom: 14,
   },
   sectionTitle: {
     ...Typography.h3,
-    color: Colors.text,
-    marginBottom: Spacing.md,
+    color: '#0f172a',
+    marginBottom: 4,
   },
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-    paddingVertical: Spacing.sm,
-  },
-  dropdownIcon: {
+  sectionSubtitle: {
     ...Typography.body,
-    color: Colors.textLight,
+    color: '#64748b',
   },
-  dropdownList: {
-    marginTop: Spacing.sm,
+  tabs: {
+    flexDirection: 'row',
+    backgroundColor: '#e2e8f0',
+    padding: 4,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
   },
-  dropdownContentCard: {
-    marginTop: Spacing.sm,
+  tab: {
+    minHeight: 38,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
   },
-  actionButton: {
-    marginVertical: Spacing.sm,
+  tabActive: {
+    backgroundColor: '#ffffff',
+  },
+  tabText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '800',
+  },
+  tabTextActive: {
+    color: '#0f172a',
+  },
+  overviewCard: {
+    marginHorizontal: 0,
+    marginVertical: 0,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  overviewItem: {
+    minHeight: 72,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  overviewItemText: {
+    flex: 1,
   },
   itemTitle: {
-    ...Typography.h3,
-    color: Colors.text,
+    fontSize: 15,
+    color: '#0f172a',
+    fontWeight: '800',
+    marginBottom: 4,
   },
   itemDescription: {
     ...Typography.body,
-    color: Colors.textLight,
-    marginTop: Spacing.sm,
+    color: '#64748b',
+    lineHeight: 20,
   },
-  itemMeta: {
-    ...Typography.caption,
-    color: Colors.textLight,
-    marginTop: Spacing.sm,
+  metaBadge: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexShrink: 1,
+  },
+  metaBadgeText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '800',
+  },
+  listSeparator: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
   },
   emptyText: {
     ...Typography.body,
-    color: Colors.textLight,
+    color: '#64748b',
     textAlign: 'center',
-    paddingVertical: Spacing.md,
+    paddingVertical: 28,
+    paddingHorizontal: 18,
+  },
+  containerMobile: {
+    flex: 1,
+  },
+  contentMobile: {
+    padding: 12,
+    paddingBottom: 16,
+  },
+  statsGridMobile: {
+    marginHorizontal: -4,
+    marginBottom: 12,
+    gap: 8,
+  },
+  statGridItemCompact: {
+    width: '100%',
+    paddingHorizontal: 0,
+    marginBottom: 8,
+  },
+  statCardMobile: {
+    minHeight: 120,
+    padding: 12,
+  },
+  statIconMobile: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+  },
+  statTitleMobile: {
+    fontSize: 12,
+  },
+  statValueMobile: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  statDescriptionMobile: {
+    fontSize: 11,
+    marginBottom: 12,
+  },
+  statActionMobile: {
+    fontSize: 11,
   },
 });
 
 export default AdminDashboardScreen;
-

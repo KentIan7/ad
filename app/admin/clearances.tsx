@@ -26,27 +26,27 @@ interface AdminClearancesScreenProps {
 }
 
 const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigation }) => {
-  const { clearances, staffRoles, createClearance, updateClearance, deleteClearance } = useApp();
+  const { clearances, staffRoles, departments, createClearance, updateClearance, deleteClearance } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [editClearanceId, setEditClearanceId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [staffRole, setStaffRole] = useState('');
-  const [errors, setErrors] = useState<{name?: string; description?: string; staffRole?: string}>({});
+  const [departmentsAllowed, setDepartmentsAllowed] = useState<string[]>([]);
+  const [errors, setErrors] = useState<{name?: string; description?: string; staffRole?: string; departments?: string}>({});
 
   const handleSave = async () => {
     const safeName = name || '';
     const safeDescription = description || '';
 
-    const newErrors: {name?: string; description?: string; staffRole?: string} = {};
+    const newErrors: {name?: string; description?: string; staffRole?: string; departments?: string} = {};
     if (!safeName.trim()) newErrors.name = 'Clearance name is required';
     if (!safeDescription.trim()) newErrors.description = 'Description is required';
     if (!staffRole) newErrors.staffRole = 'Please select an assigned staff role';
+    if (departmentsAllowed.length === 0) newErrors.departments = 'Please select at least one department';
 
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
-
-    const departmentsAllowed = ['Computer Science', 'Engineering', 'Business Administration'];
     
     try {
       if (editClearanceId) {
@@ -73,6 +73,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
       setName('');
       setDescription('');
       setStaffRole('');
+      setDepartmentsAllowed([]);
       setErrors({});
       setEditClearanceId(null);
       setShowModal(false);
@@ -86,6 +87,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
     setName(item.name || '');
     setDescription(item.description || '');
     setStaffRole(item.staffRole || '');
+    setDepartmentsAllowed(item.departmentsAllowed || []);
     setShowModal(true);
   };
 
@@ -131,9 +133,6 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
           <Text style={styles.title}>Clearances</Text>
         </View>
         <Button
@@ -143,6 +142,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
             setName('');
             setDescription('');
             setStaffRole('');
+            setDepartmentsAllowed([]);
             setErrors({});
             setShowModal(true);
           }}
@@ -154,7 +154,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
       {clearances.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No clearances yet</Text>
-          <Text style={styles.emptySubtext}>Tap "Add Clearance" to create your first clearance</Text>
+          <Text style={styles.emptySubtext}>Tap Add Clearance to create your first clearance</Text>
         </View>
       ) : (
         <FlatList
@@ -166,13 +166,22 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                 <View style={styles.clearanceInfo}>
                   <Text style={styles.clearanceName}>{item.name}</Text>
                   <Text style={styles.clearanceDescription}>{item.description}</Text>
-                  <Text style={styles.clearanceMeta}>
-                    {item.departmentsAllowed.length} department{item.departmentsAllowed.length !== 1 ? 's' : ''} allowed
-                  </Text>
                   <View style={styles.partsList}>
                     <Text style={styles.partItem}>
                       Assigned to: {staffRoles.find(r => r.id === item.staffRole)?.name || item.staffRole}
                     </Text>
+                  </View>
+                  <View style={styles.departmentsList}>
+                    <Text style={styles.clearanceMeta}>
+                      {item.departmentsAllowed.length} department{item.departmentsAllowed.length !== 1 ? 's' : ''}
+                    </Text>
+                    {item.departmentsAllowed.length > 0 && (
+                      <Text style={styles.partItem}>
+                        {item.departmentsAllowed
+                          .map(deptId => departments.find(d => d.id === deptId)?.name || deptId)
+                          .join(', ')}
+                      </Text>
+                    )}
                   </View>
                 </View>
                 <View style={styles.actionsContainer}>
@@ -252,6 +261,39 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                   </ScrollView>
                 {errors.staffRole ? <Text style={styles.fieldErrorText}>{errors.staffRole}</Text> : null}
               </View>
+
+              {/* Departments Selection */}
+              <View style={styles.partContainer}>
+                <Text style={styles.label}>Assign to Departments</Text>
+                <Text style={styles.helperText}>Select which departments require this clearance</Text>
+                <View style={styles.departmentsGrid}>
+                  {departments.filter(d => d.status === 'active').map(dept => (
+                    <TouchableOpacity
+                      key={dept.id}
+                      style={[
+                        styles.departmentOption,
+                        departmentsAllowed.includes(dept.id) && styles.departmentOptionSelected,
+                      ]}
+                      onPress={() => {
+                        setDepartmentsAllowed(prev =>
+                          prev.includes(dept.id)
+                            ? prev.filter(id => id !== dept.id)
+                            : [...prev, dept.id]
+                        );
+                        setErrors(prev => ({ ...prev, departments: undefined }));
+                      }}
+                    >
+                      <Text style={[
+                        styles.departmentOptionText,
+                        departmentsAllowed.includes(dept.id) && styles.departmentOptionTextSelected,
+                      ]}>
+                        {departmentsAllowed.includes(dept.id) ? '✓ ' : ''}{dept.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {errors.departments ? <Text style={styles.fieldErrorText}>{errors.departments}</Text> : null}
+              </View>
             </ScrollView>
 
             <View style={styles.modalActions}>
@@ -263,6 +305,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
                   setName('');
                   setDescription('');
                   setStaffRole('');
+                  setDepartmentsAllowed([]);
                   setErrors({});
                 }}
                 variant="secondary"
@@ -312,7 +355,7 @@ const styles = StyleSheet.create({
     ...Typography.h2,
     color: Colors.text,
     flex: 1,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   emptyContainer: {
     flex: 1,
@@ -353,6 +396,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   partsList: {
+    marginTop: Spacing.sm,
+  },
+  departmentsList: {
     marginTop: Spacing.sm,
   },
   partItem: {
@@ -452,6 +498,39 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
+  },
+  departmentsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginVertical: Spacing.md,
+  },
+  departmentOption: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  departmentOptionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  departmentOptionText: {
+    ...Typography.caption,
+    color: Colors.text,
+  },
+  departmentOptionTextSelected: {
+    color: Colors.textInverse,
+    fontWeight: '600',
+  },
+  helperText: {
+    ...Typography.caption,
+    color: Colors.textLight,
+    marginTop: Spacing.xs,
   },
 });
 

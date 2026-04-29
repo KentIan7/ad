@@ -1,6 +1,6 @@
 /**
  * Clearance Detail Screen
- * Shows detailed status of a submitted clearance with all parts
+ * Shows detailed status of an assigned clearance
  */
 
 import { Button } from '@/components/ui/button';
@@ -9,27 +9,18 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
 import React from 'react';
-import {
-    FlatList,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 interface ClearanceDetailScreenProps {
   route?: any;
   navigation?: any;
 }
 
-const ClearanceDetailScreen: React.FC<ClearanceDetailScreenProps> = ({
-  route,
-  navigation,
-}) => {
-  const { studentClearances } = useApp();
+const ClearanceDetailScreen: React.FC<ClearanceDetailScreenProps> = ({ route, navigation }) => {
+  const { studentClearances, staffRoles } = useApp();
   const { clearanceId } = route?.params || {};
 
-  const studentClearance = studentClearances.find(sc => sc.id === clearanceId);
+  const studentClearance = studentClearances.find((clearance) => clearance.id === clearanceId);
 
   if (!studentClearance) {
     return (
@@ -40,106 +31,76 @@ const ClearanceDetailScreen: React.FC<ClearanceDetailScreenProps> = ({
   }
 
   const clearance = studentClearance.clearance;
-  const submittedDate = new Date(studentClearance.submittedAt);
-  const completedDate = studentClearance.completedAt
-    ? new Date(studentClearance.completedAt)
-    : null;
-
+  const assignedDate = new Date(studentClearance.submittedAt);
+  const completedDate = studentClearance.completedAt ? new Date(studentClearance.completedAt) : null;
   const isComplete = studentClearance.status === 'approved';
   const hasRejection = studentClearance.status === 'rejected';
+  const roleName = staffRoles.find((role) => role.id === clearance.staffRole)?.name || 'Unassigned Staff Role';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Header */}
       <View style={styles.header}>
-        <Button
-          title="← Back"
-          onPress={() => navigation?.goBack()}
-          variant="secondary"
-          size="small"
-        />
+        <Button title="Back" onPress={() => navigation?.goBack()} variant="secondary" size="small" />
       </View>
 
-      {/* Clearance Title */}
       <Card>
         <Text style={styles.clearanceName}>{clearance.name}</Text>
         <Text style={styles.clearanceDescription}>{clearance.description}</Text>
       </Card>
 
-      {/* Status Overview */}
       <Card>
         <View style={styles.statusOverview}>
           <View style={styles.statusItem}>
             <Text style={styles.statusLabel}>Status</Text>
-            <StatusBadge
-              status={
-                hasRejection ? 'rejected' : isComplete ? 'approved' : 'pending'
-              }
-            />
+            <StatusBadge status={hasRejection ? 'rejected' : isComplete ? 'approved' : 'pending'} />
           </View>
           <View style={styles.statusItem}>
             <Text style={styles.statusLabel}>Assigned Staff Role</Text>
-            <Text style={styles.progressText}>{clearance.staffRole}</Text>
+            <Text style={styles.progressText}>{roleName}</Text>
           </View>
         </View>
 
-        {studentClearance.remarks && (
-          <View
-            style={[
-              styles.remarksContainer,
-              hasRejection && styles.remarksRejected,
-            ]}
-          >
+        {studentClearance.remarks ? (
+          <View style={[styles.remarksContainer, hasRejection && styles.remarksRejected]}>
             <Text style={styles.remarksLabel}>
-              {studentClearance.status === 'approved' ? '✍️ Remarks' : '⚠️ Reason'}
+              {studentClearance.status === 'approved' ? 'Remarks' : 'Reason'}
             </Text>
             <Text style={styles.remarksText}>{studentClearance.remarks}</Text>
           </View>
-        )}
+        ) : null}
       </Card>
 
-      {/* Timeline */}
       <Card>
-        <Text style={styles.timelineTitle}>📅 Timeline</Text>
+        <Text style={styles.timelineTitle}>Timeline</Text>
         <View style={styles.timelineItem}>
-          <Text style={styles.timelineDate}>Submitted</Text>
-          <Text style={styles.timelineTime}>{submittedDate.toLocaleString()}</Text>
+          <Text style={styles.timelineDate}>Assigned</Text>
+          <Text style={styles.timelineTime}>{assignedDate.toLocaleString()}</Text>
         </View>
-
-        {completedDate && (
+        {completedDate ? (
           <View style={styles.timelineItem}>
             <Text style={styles.timelineDate}>Completed</Text>
             <Text style={styles.timelineTime}>{completedDate.toLocaleString()}</Text>
           </View>
-        )}
+        ) : null}
       </Card>
 
-
-
-      {/* Action */}
-      {hasRejection && (
+      {hasRejection ? (
         <Card style={styles.actionCard}>
-          <Text style={styles.actionTitle}>❌ Changes Required</Text>
+          <Text style={styles.actionTitle}>Changes Required</Text>
           <Text style={styles.actionText}>
-            This clearance has been rejected. Please address the reasons mentioned above and resubmit your clearance request.
+            This clearance has been rejected. Please review the reason above and contact the assigned office if you need clarification.
           </Text>
-          <Button
-            title="Resubmit Clearance"
-            onPress={() => navigation?.goBack()}
-            variant="primary"
-            style={styles.actionButton}
-          />
         </Card>
-      )}
+      ) : null}
 
-      {isComplete && !hasRejection && (
+      {isComplete && !hasRejection ? (
         <Card style={styles.completeCard}>
-          <Text style={styles.completeTitle}>🎉 Clearance Complete!</Text>
+          <Text style={styles.completeTitle}>Clearance Complete</Text>
           <Text style={styles.completeText}>
-            Congratulations! All approval steps have been completed successfully.
+            All approval steps for this clearance have been completed successfully.
           </Text>
         </Card>
-      )}
+      ) : null}
     </ScrollView>
   );
 };
@@ -178,6 +139,7 @@ const styles = StyleSheet.create({
   },
   statusItem: {
     alignItems: 'center',
+    flex: 1,
   },
   statusLabel: {
     ...Typography.caption,
@@ -185,84 +147,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   progressText: {
-    ...Typography.h2,
-    color: Colors.primary,
-  },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: Colors.border,
-    borderRadius: 4,
-    marginVertical: Spacing.md,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statText: {
-    ...Typography.caption,
-    color: Colors.approved,
-    fontWeight: '600',
-  },
-  timelineTitle: {
-    ...Typography.h3,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-  },
-  timelineItem: {
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  timelineDate: {
     ...Typography.body,
-    color: Colors.text,
-    fontWeight: '600',
-  },
-  timelineTime: {
-    ...Typography.caption,
-    color: Colors.textLight,
-    marginTop: Spacing.xs,
-  },
-  stepsTitle: {
-    ...Typography.h3,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.md,
-  },
-  stepCard: {
-    marginVertical: Spacing.sm,
-  },
-  stepCardRejected: {
-    backgroundColor: Colors.rejectedBg,
-  },
-  stepHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  stepInfo: {
-    flex: 1,
-  },
-  stepNumber: {
-    ...Typography.caption,
     color: Colors.primary,
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-  },
-  stepName: {
-    ...Typography.body,
-    color: Colors.text,
-    fontWeight: '600',
-  },
-  stepRole: {
-    ...Typography.caption,
-    color: Colors.textLight,
-    marginTop: Spacing.xs,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   remarksContainer: {
     marginTop: Spacing.md,
@@ -286,10 +174,25 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.text,
   },
-  approvedAt: {
+  timelineTitle: {
+    ...Typography.h3,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+  },
+  timelineItem: {
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  timelineDate: {
+    ...Typography.body,
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  timelineTime: {
     ...Typography.caption,
     color: Colors.textLight,
-    marginTop: Spacing.md,
+    marginTop: Spacing.xs,
   },
   actionCard: {
     backgroundColor: Colors.rejectedBg,
@@ -305,10 +208,6 @@ const styles = StyleSheet.create({
   actionText: {
     ...Typography.body,
     color: Colors.text,
-    marginBottom: Spacing.md,
-  },
-  actionButton: {
-    marginTop: Spacing.md,
   },
   completeCard: {
     backgroundColor: Colors.approvedBg,

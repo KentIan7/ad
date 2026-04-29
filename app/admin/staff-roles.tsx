@@ -122,9 +122,6 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
           <Text style={styles.title}>Staff Roles</Text>
         </View>
         <Button
@@ -144,7 +141,7 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
       {staffRoles.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No staff roles yet</Text>
-          <Text style={styles.emptySubtext}>Tap "Add Role" to create your first staff role</Text>
+          <Text style={styles.emptySubtext}>Tap Add Role to create your first staff role</Text>
         </View>
       ) : (
         <FlatList
@@ -260,7 +257,7 @@ const styles = StyleSheet.create({
     ...Typography.h2,
     color: Colors.text,
     flex: 1,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   emptyContainer: {
     flex: 1,
