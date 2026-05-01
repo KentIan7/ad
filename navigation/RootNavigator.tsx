@@ -1,6 +1,7 @@
 /**
  * Root Navigation Setup
  * Routes users to appropriate screen based on auth status and role
+ * Uses custom mobile drawer for navigation on small screens
  */
 
 import { Colors } from '@/constants/colors';
@@ -8,7 +9,9 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View, Animated, PanResponder } from 'react-native';
+import { ActivityIndicator, Animated, SafeAreaView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View, ScrollView } from 'react-native';
+import { createDrawerNavigator, DrawerScreenProps, DrawerNavigationProp } from '@react-navigation/drawer';
+import { NavigationContainer } from '@react-navigation/native';
 
 // Import screens
 import AdminClearancesScreen from '@/app/admin/clearances';
@@ -22,10 +25,14 @@ import ForgotPasswordScreen from '@/app/forgot-password';
 import LoginScreen from '@/app/login';
 import ResetPasswordScreen from '@/app/reset-password';
 import StaffApproveScreen from '@/app/staff/approve';
+import StaffClearancesScreen from '@/app/staff/clearances';
 import StaffDashboardScreen from '@/app/staff/dashboard';
 import StaffRejectScreen from '@/app/staff/reject';
+import StaffSettingsScreen from '@/app/staff/settings';
 import ClearanceDetailScreen from '@/app/student/clearance-detail';
+import StudentClearancesScreen from '@/app/student/clearances';
 import StudentDashboardScreen from '@/app/student/dashboard';
+import StudentSettingsScreen from '@/app/student/settings';
 
 /**
  * Root Navigator Component
@@ -90,179 +97,93 @@ export const RootNavigator: React.FC = () => {
 };
 
 /**
- * Admin Navigator
- * Nested navigation for admin features
+ * Drawer Navigation Setup
+ * Custom drawer for mobile-optimized navigation
  */
-interface AdminSidebarItem {
+interface SidebarItem {
   key: string;
   label: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   badge?: number;
 }
 
-interface AdminSidebarGroup {
-  title: string;
-  items: AdminSidebarItem[];
+/**
+ * Custom Mobile Drawer Component
+ */
+interface MobileDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  items: SidebarItem[];
+  onItemPress: (key: string) => void;
+  activeItem: string;
 }
 
-const AdminNavigator: React.FC = () => {
-  const { user, logout } = useAuth();
-  const { pendingStudents } = useApp();
-  const [screen, setScreen] = React.useState('dashboard');
-  const [params, setParams] = React.useState<any>(null);
-  const { width } = useWindowDimensions();
-  const isCompact = width < 760;
-  const isMobileDrawer = width < 600;
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
+const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, items, onItemPress, activeItem }) => {
   const drawerAnimation = React.useRef(new Animated.Value(0)).current;
-  const pendingCount = pendingStudents.filter((student) => student.status === 'pending').length;
 
   React.useEffect(() => {
     Animated.timing(drawerAnimation, {
-      toValue: drawerOpen ? 1 : 0,
+      toValue: isOpen ? 1 : 0,
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [drawerOpen]);
-
-  const navigation = {
-    navigate: (name: string, p?: any) => {
-      setScreen(name);
-      setParams(p);
-    },
-    goBack: () => setScreen('dashboard'),
-  };
-
-  const sidebarGroups: AdminSidebarGroup[] = [
-    {
-      title: '',
-      items: [
-        { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' as const },
-      ],
-    },
-    {
-      title: 'Management',
-      items: [
-        { key: 'AdminDepartments', label: 'Departments', icon: 'office-building-outline' as const },
-        { key: 'AdminStaffRoles', label: 'Roles', icon: 'shield-account-outline' as const },
-        { key: 'AdminStaffAccounts', label: 'Staff', icon: 'account-tie-outline' as const },
-        { key: 'AdminClearances', label: 'All Clearances', icon: 'clipboard-check-outline' as const },
-        { key: 'AdminPendingStudents', label: 'Pending', icon: 'clock-alert-outline' as const, badge: pendingCount },
-        { key: 'AdminStudents', label: 'Students', icon: 'account-school-outline' as const },
-      ],
-    },
-  ];
-
-  const renderScreen = () => {
-    switch (screen) {
-      case 'dashboard':
-        return <AdminDashboardScreen navigation={navigation} />;
-      case 'AdminDepartments':
-        return <AdminDepartmentsScreen navigation={navigation} />;
-      case 'AdminStaffRoles':
-        return <AdminStaffRolesScreen navigation={navigation} />;
-      case 'AdminStaffAccounts':
-        return <AdminStaffAccountsScreen navigation={navigation} />;
-      case 'AdminClearances':
-        return <AdminClearancesScreen navigation={navigation} />;
-      case 'AdminPendingStudents':
-        return <AdminPendingStudentsScreen navigation={navigation} />;
-      case 'AdminStudents':
-        return <AdminStudentsScreen navigation={navigation} />;
-      default:
-        return <AdminDashboardScreen navigation={navigation} />;
-    }
-  };
+  }, [isOpen]);
 
   return (
-    <SafeAreaView style={styles.adminShell}>
-      <AdminHeader
-        adminName={user?.name || 'Admin User'}
-        onLogout={logout}
-        isCompact={isCompact}
-        isMobileDrawer={isMobileDrawer}
-        onDrawerToggle={() => setDrawerOpen(!drawerOpen)}
-      />
-      <View style={styles.adminBody}>
-        {!isMobileDrawer && (
-          <View style={[styles.adminSidebar, isCompact && styles.adminSidebarCompact]}>
-            {sidebarGroups.map((group, groupIndex) => (
-              <View key={group.title || `group-${groupIndex}`} style={styles.adminNavGroup}>
-                {group.title ? (
-                  <Text style={[styles.adminNavGroupTitle, isCompact && styles.adminNavGroupTitleCompact]}>
-                    {group.title}
-                  </Text>
-                ) : null}
-                {group.items.map((item) => (
-                  <AdminNavItem
-                    key={item.key}
-                    label={item.label}
-                    icon={item.icon}
-                    badge={item.badge}
-                    isActive={screen === item.key}
-                    isCompact={isCompact}
-                    onPress={() => navigation.navigate(item.key)}
-                  />
-                ))}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {isMobileDrawer && (
-          <>
-            {drawerOpen && (
-              <TouchableOpacity
-                style={styles.drawerOverlay}
-                activeOpacity={0.5}
-                onPress={() => setDrawerOpen(false)}
-              />
-            )}
-            <Animated.View
-              style={[
-                styles.mobileDrawer,
-                {
-                  transform: [
-                    {
-                      translateX: drawerAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-248, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
+    <>
+      {isOpen && (
+        <TouchableOpacity
+          style={styles.drawerOverlay}
+          activeOpacity={0.5}
+          onPress={onClose}
+        />
+      )}
+      <Animated.View
+        style={[
+          styles.mobileDrawer,
+          {
+            transform: [
+              {
+                translateX: drawerAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-260, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <ScrollView style={{ flex: 1 }} scrollEnabled={false}>
+          {items.map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={[styles.adminNavItem, activeItem === item.key && styles.adminNavItemActive]}
+              onPress={() => {
+                onItemPress(item.key);
+                onClose();
+              }}
+              accessibilityRole="button"
             >
-              {sidebarGroups.map((group, groupIndex) => (
-                <View key={group.title || `group-${groupIndex}`} style={styles.adminNavGroup}>
-                  {group.title ? (
-                    <Text style={styles.adminNavGroupTitle}>
-                      {group.title}
-                    </Text>
-                  ) : null}
-                  {group.items.map((item) => (
-                    <AdminNavItem
-                      key={item.key}
-                      label={item.label}
-                      icon={item.icon}
-                      badge={item.badge}
-                      isActive={screen === item.key}
-                      isCompact={false}
-                      onPress={() => {
-                        navigation.navigate(item.key);
-                        setDrawerOpen(false);
-                      }}
-                    />
-                  ))}
+              <MaterialCommunityIcons 
+                name={item.icon} 
+                size={20} 
+                color={activeItem === item.key ? '#ffffff' : '#cbd5e1'} 
+              />
+              <Text style={[styles.adminNavText, activeItem === item.key && styles.adminNavTextActive]}>
+                {item.label}
+              </Text>
+              {typeof item.badge === 'number' ? (
+                <View style={[styles.adminNavBadge, item.badge > 0 && styles.adminNavBadgeAlert]}>
+                  <Text style={[styles.adminNavBadgeText, item.badge > 0 && styles.adminNavBadgeAlertText]}>
+                    {item.badge}
+                  </Text>
                 </View>
-              ))}
-            </Animated.View>
-          </>
-        )}
-
-        <View style={styles.adminContent}>{renderScreen()}</View>
-      </View>
-    </SafeAreaView>
+              ) : null}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </Animated.View>
+    </>
   );
 };
 
@@ -301,6 +222,103 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ adminName, isCompact, isMobil
   </View>
 );
 
+/**
+ * Admin Navigator
+ */
+const AdminNavigator: React.FC = () => {
+  const { user, logout } = useAuth();
+  const { pendingStudents } = useApp();
+  const [screen, setScreen] = React.useState('dashboard');
+  const [params, setParams] = React.useState<any>(null);
+  const { width } = useWindowDimensions();
+  const isCompact = width < 760;
+  const isMobileDrawer = width < 760;
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const pendingCount = pendingStudents.filter((student) => student.status === 'pending').length;
+
+  const navigation = {
+    navigate: (name: string, p?: any) => {
+      setScreen(name);
+      setParams(p);
+    },
+    goBack: () => setScreen('dashboard'),
+  };
+
+  const sidebarItems: SidebarItem[] = [
+    { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' as const },
+    { key: 'AdminDepartments', label: 'Departments', icon: 'office-building-outline' as const },
+    { key: 'AdminStaffRoles', label: 'Roles', icon: 'shield-account-outline' as const },
+    { key: 'AdminStaffAccounts', label: 'Staff', icon: 'account-tie-outline' as const },
+    { key: 'AdminClearances', label: 'All Clearances', icon: 'clipboard-check-outline' as const },
+    { key: 'AdminPendingStudents', label: 'Pending', icon: 'clock-alert-outline' as const, badge: pendingCount },
+    { key: 'AdminStudents', label: 'Students', icon: 'account-school-outline' as const },
+  ];
+
+  const renderScreen = () => {
+    switch (screen) {
+      case 'dashboard':
+        return <AdminDashboardScreen navigation={navigation} />;
+      case 'AdminDepartments':
+        return <AdminDepartmentsScreen navigation={navigation} />;
+      case 'AdminStaffRoles':
+        return <AdminStaffRolesScreen navigation={navigation} />;
+      case 'AdminStaffAccounts':
+        return <AdminStaffAccountsScreen navigation={navigation} />;
+      case 'AdminClearances':
+        return <AdminClearancesScreen navigation={navigation} />;
+      case 'AdminPendingStudents':
+        return <AdminPendingStudentsScreen navigation={navigation} />;
+      case 'AdminStudents':
+        return <AdminStudentsScreen navigation={navigation} />;
+      default:
+        return <AdminDashboardScreen navigation={navigation} />;
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.adminShell}>
+      <AdminHeader
+        adminName={user?.name || 'Admin User'}
+        onLogout={logout}
+        isCompact={isCompact}
+        isMobileDrawer={isMobileDrawer}
+        onDrawerToggle={() => setDrawerOpen(!drawerOpen)}
+      />
+      <View style={styles.adminBody}>
+        {!isMobileDrawer && (
+          <View style={[styles.adminSidebar, isCompact && styles.adminSidebarCompact]}>
+            <View style={styles.adminNavGroup}>
+              {sidebarItems.map((item) => (
+                <AdminNavItem
+                  key={item.key}
+                  label={item.label}
+                  icon={item.icon}
+                  badge={item.badge}
+                  isActive={screen === item.key}
+                  isCompact={isCompact}
+                  onPress={() => navigation.navigate(item.key)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {isMobileDrawer && (
+          <MobileDrawer
+            isOpen={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            items={sidebarItems}
+            onItemPress={(key) => navigation.navigate(key)}
+            activeItem={screen}
+          />
+        )}
+
+        <View style={styles.adminContent}>{renderScreen()}</View>
+      </View>
+    </SafeAreaView>
+  );
+};
+
 interface AdminNavItemProps {
   label: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -330,11 +348,15 @@ const AdminNavItem: React.FC<AdminNavItemProps> = ({ label, icon, badge, isActiv
 
 /**
  * Staff Navigator
- * Nested navigation for staff features
  */
 const StaffNavigator: React.FC = () => {
+  const { user, logout } = useAuth();
   const [screen, setScreen] = React.useState('dashboard');
   const [params, setParams] = React.useState<any>(null);
+  const { width } = useWindowDimensions();
+  const isCompact = width < 760;
+  const isMobileDrawer = width < 600;
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const navigation = {
     navigate: (name: string, p?: any) => {
@@ -344,27 +366,118 @@ const StaffNavigator: React.FC = () => {
     goBack: () => setScreen('dashboard'),
   };
 
-  switch (screen) {
-    case 'dashboard':
-      return <StaffDashboardScreen navigation={navigation} />;
-    case 'StaffApprove':
-      return (
-        <StaffApproveScreen route={{ params }} navigation={navigation} />
-      );
-    case 'StaffReject':
-      return <StaffRejectScreen route={{ params }} navigation={navigation} />;
-    default:
-      return <StaffDashboardScreen navigation={navigation} />;
-  }
+  const sidebarItems: SidebarItem[] = [
+    { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' as const },
+    { key: 'StaffClearances', label: 'Student Clearances', icon: 'clipboard-check-outline' as const },
+    { key: 'StaffSettings', label: 'Settings', icon: 'cog-outline' as const },
+  ];
+
+  const renderScreen = () => {
+    switch (screen) {
+      case 'dashboard':
+        return <StaffDashboardScreen navigation={navigation} />;
+      case 'StaffClearances':
+        return <StaffClearancesScreen navigation={navigation} />;
+      case 'StaffSettings':
+        return <StaffSettingsScreen navigation={navigation} />;
+      case 'StaffApprove':
+        return <StaffApproveScreen route={{ params }} navigation={navigation} />;
+      case 'StaffReject':
+        return <StaffRejectScreen route={{ params }} navigation={navigation} />;
+      default:
+        return <StaffDashboardScreen navigation={navigation} />;
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.adminShell}>
+      <StaffHeader
+        staffName={user?.name || 'Staff Member'}
+        onLogout={logout}
+        isCompact={isCompact}
+        isMobileDrawer={isMobileDrawer}
+        onDrawerToggle={() => setDrawerOpen(!drawerOpen)}
+      />
+      <View style={styles.adminBody}>
+        {!isMobileDrawer && (
+          <View style={[styles.adminSidebar, isCompact && styles.adminSidebarCompact]}>
+            <View style={styles.adminNavGroup}>
+              {sidebarItems.map((item) => (
+                <AdminNavItem
+                  key={item.key}
+                  label={item.label}
+                  icon={item.icon}
+                  isActive={screen === item.key}
+                  isCompact={isCompact}
+                  onPress={() => navigation.navigate(item.key)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {isMobileDrawer && (
+          <MobileDrawer
+            isOpen={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            items={sidebarItems}
+            onItemPress={(key) => navigation.navigate(key)}
+            activeItem={screen}
+          />
+        )}
+
+        <View style={styles.adminContent}>{renderScreen()}</View>
+      </View>
+    </SafeAreaView>
+  );
 };
+
+interface StaffHeaderProps {
+  staffName: string;
+  isCompact: boolean;
+  isMobileDrawer: boolean;
+  onDrawerToggle: () => void;
+  onLogout: () => void;
+}
+
+const StaffHeader: React.FC<StaffHeaderProps> = ({ staffName, isCompact, isMobileDrawer, onDrawerToggle, onLogout }) => (
+  <View style={styles.adminHeader}>
+    <View style={styles.adminBrandBlock}>
+      {isMobileDrawer && (
+        <TouchableOpacity onPress={onDrawerToggle} style={styles.hamburgerButton} accessibilityRole="button">
+          <MaterialCommunityIcons name="menu" size={24} color="#0f172a" />
+        </TouchableOpacity>
+      )}
+      <View style={styles.adminBrandMark}>
+        <MaterialCommunityIcons name="check-decagram" size={18} color="#ffffff" />
+      </View>
+      <Text style={styles.adminBrandText}>ClearanceHub</Text>
+    </View>
+
+    <View style={styles.adminHeaderRight}>
+      {!isCompact ? <Text style={styles.adminWelcome}>Welcome, {staffName}</Text> : null}
+      <View style={styles.adminRoleBadge}>
+        <Text style={styles.adminRoleBadgeText}>Staff</Text>
+      </View>
+      <TouchableOpacity style={styles.adminLogoutButton} onPress={onLogout} accessibilityRole="button">
+        <MaterialCommunityIcons name="logout" size={18} color="#ffffff" />
+        {!isCompact ? <Text style={styles.adminLogoutText}>Logout</Text> : null}
+      </TouchableOpacity>
+    </View>
+  </View>
+);
 
 /**
  * Student Navigator
- * Nested navigation for student features
  */
 const StudentNavigator: React.FC = () => {
+  const { user, logout } = useAuth();
   const [screen, setScreen] = React.useState('dashboard');
   const [params, setParams] = React.useState<any>(null);
+  const { width } = useWindowDimensions();
+  const isCompact = width < 760;
+  const isMobileDrawer = width < 760;
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const navigation = {
     navigate: (name: string, p?: any) => {
@@ -374,19 +487,104 @@ const StudentNavigator: React.FC = () => {
     goBack: () => setScreen('dashboard'),
   };
 
-  switch (screen) {
-    case 'dashboard':
-      return <StudentDashboardScreen navigation={navigation} />;
-    case 'StudentDashboard':
-      return <StudentDashboardScreen navigation={navigation} />;
-    case 'StudentClearanceDetail':
-      return (
-        <ClearanceDetailScreen route={{ params }} navigation={navigation} />
-      );
-    default:
-      return <StudentDashboardScreen navigation={navigation} />;
-  }
+  const sidebarItems: SidebarItem[] = [
+    { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' as const },
+    { key: 'StudentClearances', label: 'My Clearances', icon: 'clipboard-check-outline' as const },
+    { key: 'StudentSettings', label: 'Settings', icon: 'cog-outline' as const },
+  ];
+
+  const renderScreen = () => {
+    switch (screen) {
+      case 'dashboard':
+        return <StudentDashboardScreen navigation={navigation} />;
+      case 'StudentClearances':
+        return <StudentClearancesScreen navigation={navigation} />;
+      case 'StudentSettings':
+        return <StudentSettingsScreen navigation={navigation} />;
+      case 'StudentClearanceDetail':
+        return <ClearanceDetailScreen route={{ params }} navigation={navigation} />;
+      default:
+        return <StudentDashboardScreen navigation={navigation} />;
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.adminShell}>
+      <StudentHeader
+        studentName={user?.name || 'Student'}
+        onLogout={logout}
+        isCompact={isCompact}
+        isMobileDrawer={isMobileDrawer}
+        onDrawerToggle={() => setDrawerOpen(!drawerOpen)}
+      />
+      <View style={styles.adminBody}>
+        {!isMobileDrawer && (
+          <View style={[styles.adminSidebar, isCompact && styles.adminSidebarCompact]}>
+            <View style={styles.adminNavGroup}>
+              {sidebarItems.map((item) => (
+                <AdminNavItem
+                  key={item.key}
+                  label={item.label}
+                  icon={item.icon}
+                  isActive={screen === item.key}
+                  isCompact={isCompact}
+                  onPress={() => navigation.navigate(item.key)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {isMobileDrawer && (
+          <MobileDrawer
+            isOpen={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            items={sidebarItems}
+            onItemPress={(key) => navigation.navigate(key)}
+            activeItem={screen}
+          />
+        )}
+
+        <View style={styles.adminContent}>{renderScreen()}</View>
+      </View>
+    </SafeAreaView>
+  );
 };
+
+interface StudentHeaderProps {
+  studentName: string;
+  isCompact: boolean;
+  isMobileDrawer: boolean;
+  onDrawerToggle: () => void;
+  onLogout: () => void;
+}
+
+const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName, isCompact, isMobileDrawer, onDrawerToggle, onLogout }) => (
+  <View style={styles.adminHeader}>
+    <View style={styles.adminBrandBlock}>
+      {isMobileDrawer && (
+        <TouchableOpacity onPress={onDrawerToggle} style={styles.hamburgerButton} accessibilityRole="button">
+          <MaterialCommunityIcons name="menu" size={24} color="#0f172a" />
+        </TouchableOpacity>
+      )}
+      <View style={styles.adminBrandMark}>
+        <MaterialCommunityIcons name="check-decagram" size={18} color="#ffffff" />
+      </View>
+      <Text style={styles.adminBrandText}>ClearanceHub</Text>
+    </View>
+
+    <View style={styles.adminHeaderRight}>
+      {!isCompact ? <Text style={styles.adminWelcome}>Welcome, {studentName}</Text> : null}
+      <View style={styles.adminRoleBadge}>
+        <Text style={styles.adminRoleBadgeText}>Student</Text>
+      </View>
+      <TouchableOpacity style={styles.adminLogoutButton} onPress={onLogout} accessibilityRole="button">
+        <MaterialCommunityIcons name="logout" size={18} color="#ffffff" />
+        {!isCompact ? <Text style={styles.adminLogoutText}>Logout</Text> : null}
+      </TouchableOpacity>
+    </View>
+  </View>
+);
 
 const styles = StyleSheet.create({
   adminShell: {
@@ -410,14 +608,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     flexShrink: 0,
-  },
-  hamburgerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 4,
   },
   adminBrandMark: {
     width: 34,
@@ -485,25 +675,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     alignItems: 'center',
   },
-  mobileDrawer: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 248,
+  drawerContent: {
     backgroundColor: '#1e293b',
     paddingHorizontal: 16,
     paddingVertical: 22,
-    zIndex: 100,
   },
   drawerOverlay: {
     position: 'absolute',
-    left: 0,
     top: 0,
-    right: 0,
     bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 40,
+  },
+  mobileDrawer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 260,
+    backgroundColor: '#1e293b',
     zIndex: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 22,
   },
   adminContent: {
     flex: 1,
@@ -520,11 +715,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 8,
     paddingHorizontal: 10,
-  },
-  adminNavGroupTitleCompact: {
-    opacity: 0,
-    height: 0,
-    marginBottom: 0,
   },
   adminNavItem: {
     minHeight: 44,

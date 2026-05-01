@@ -18,6 +18,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    useWindowDimensions,
 } from 'react-native';
 
 interface StaffRejectScreenProps {
@@ -33,6 +34,7 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { studentClearanceId } = route?.params || {};
+  const { width } = useWindowDimensions();
 
   const handleReject = async () => {
     if (!studentClearanceId) {
@@ -107,7 +109,7 @@ const StaffRejectScreen: React.FC<StaffRejectScreenProps> = ({ route, navigation
       </Card>
 
       {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
+      <View style={[styles.buttonContainer, width < 600 && styles.buttonContainerMobile]}>
         <Button
           title="Cancel"
           onPress={() => navigation?.goBack()}
@@ -203,6 +205,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.md,
     marginTop: Spacing.lg,
+  },
+  buttonContainerMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   button: {
     flex: 1,
