@@ -8,16 +8,16 @@ import { Colors } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React from 'react';
-import { ActivityIndicator, Animated, SafeAreaView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View, ScrollView } from 'react-native';
-import { createDrawerNavigator, DrawerScreenProps, DrawerNavigationProp } from '@react-navigation/drawer';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, BackHandler, SafeAreaView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+
 
 // Import screens
 import AdminClearancesScreen from '@/app/admin/clearances';
 import AdminDashboardScreen from '@/app/admin/dashboard';
 import AdminDepartmentsScreen from '@/app/admin/departments';
 import AdminPendingStudentsScreen from '@/app/admin/pending-students';
+import AdminSettingsScreen from '@/app/admin/settings';
 import AdminStaffAccountsScreen from '@/app/admin/staff-accounts';
 import AdminStaffRolesScreen from '@/app/admin/staff-roles';
 import AdminStudentsScreen from '@/app/admin/students';
@@ -108,104 +108,58 @@ interface SidebarItem {
 }
 
 /**
- * Custom Mobile Drawer Component
+ * Bottom Tab Bar for mobile navigation
  */
-interface MobileDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface BottomTabBarProps {
   items: SidebarItem[];
-  onItemPress: (key: string) => void;
   activeItem: string;
+  onItemPress: (key: string) => void;
 }
 
-const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, items, onItemPress, activeItem }) => {
-  const drawerAnimation = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.timing(drawerAnimation, {
-      toValue: isOpen ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [isOpen]);
-
-  return (
-    <>
-      {isOpen && (
+const BottomTabBar: React.FC<BottomTabBarProps> = ({ items, activeItem, onItemPress }) => (
+  <View style={styles.bottomTabBar}>
+    {items.map((item) => {
+      const isActive = activeItem === item.key;
+      return (
         <TouchableOpacity
-          style={styles.drawerOverlay}
-          activeOpacity={0.5}
-          onPress={onClose}
-        />
-      )}
-      <Animated.View
-        style={[
-          styles.mobileDrawer,
-          {
-            transform: [
-              {
-                translateX: drawerAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-260, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <ScrollView style={{ flex: 1 }} scrollEnabled={false}>
-          {items.map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.adminNavItem, activeItem === item.key && styles.adminNavItemActive]}
-              onPress={() => {
-                onItemPress(item.key);
-                onClose();
-              }}
-              accessibilityRole="button"
-            >
-              <MaterialCommunityIcons 
-                name={item.icon} 
-                size={20} 
-                color={activeItem === item.key ? '#ffffff' : '#cbd5e1'} 
-              />
-              <Text style={[styles.adminNavText, activeItem === item.key && styles.adminNavTextActive]}>
-                {item.label}
-              </Text>
-              {typeof item.badge === 'number' ? (
-                <View style={[styles.adminNavBadge, item.badge > 0 && styles.adminNavBadgeAlert]}>
-                  <Text style={[styles.adminNavBadgeText, item.badge > 0 && styles.adminNavBadgeAlertText]}>
-                    {item.badge}
-                  </Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </Animated.View>
-    </>
-  );
-};
+          key={item.key}
+          style={styles.bottomTabItem}
+          onPress={() => onItemPress(item.key)}
+          accessibilityRole="button"
+        >
+          <View style={[styles.bottomTabIconWrap, isActive && styles.bottomTabIconWrapActive]}>
+            <MaterialCommunityIcons
+              name={item.icon}
+              size={22}
+              color={isActive ? '#ffffff' : '#94a3b8'}
+            />
+            {typeof item.badge === 'number' && item.badge > 0 ? (
+              <View style={styles.bottomTabBadge}>
+                <Text style={styles.bottomTabBadgeText}>{item.badge}</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={[styles.bottomTabLabel, isActive && styles.bottomTabLabelActive]}>
+            {item.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
 
 interface AdminHeaderProps {
   adminName: string;
   isCompact: boolean;
-  isMobileDrawer: boolean;
-  onDrawerToggle: () => void;
-  onLogout: () => void;
+  onBack: () => void;
 }
 
-const AdminHeader: React.FC<AdminHeaderProps> = ({ adminName, isCompact, isMobileDrawer, onDrawerToggle, onLogout }) => (
+const AdminHeader: React.FC<AdminHeaderProps> = ({ adminName, isCompact, onBack }) => (
   <View style={styles.adminHeader}>
     <View style={styles.adminBrandBlock}>
-      {isMobileDrawer && (
-        <TouchableOpacity onPress={onDrawerToggle} style={styles.hamburgerButton} accessibilityRole="button">
-          <MaterialCommunityIcons name="menu" size={24} color="#0f172a" />
-        </TouchableOpacity>
-      )}
-      <View style={styles.adminBrandMark}>
-        <MaterialCommunityIcons name="check-decagram" size={18} color="#ffffff" />
-      </View>
+      <TouchableOpacity style={styles.adminBrandMark} onPress={onBack} activeOpacity={0.7}>
+        <MaterialCommunityIcons name="arrow-left" size={18} color="#ffffff" />
+      </TouchableOpacity>
       <Text style={styles.adminBrandText}>ClearanceHub</Text>
     </View>
 
@@ -214,10 +168,6 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ adminName, isCompact, isMobil
       <View style={styles.adminRoleBadge}>
         <Text style={styles.adminRoleBadgeText}>Administrator</Text>
       </View>
-      <TouchableOpacity style={styles.adminLogoutButton} onPress={onLogout} accessibilityRole="button">
-        <MaterialCommunityIcons name="logout" size={18} color="#ffffff" />
-        {!isCompact ? <Text style={styles.adminLogoutText}>Logout</Text> : null}
-      </TouchableOpacity>
     </View>
   </View>
 );
@@ -228,30 +178,48 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ adminName, isCompact, isMobil
 const AdminNavigator: React.FC = () => {
   const { user, logout } = useAuth();
   const { pendingStudents } = useApp();
-  const [screen, setScreen] = React.useState('dashboard');
+  const [history, setHistory] = React.useState<string[]>(['dashboard']);
   const [params, setParams] = React.useState<any>(null);
   const { width } = useWindowDimensions();
   const isCompact = width < 760;
   const isMobileDrawer = width < 760;
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const pendingCount = pendingStudents.filter((student) => student.status === 'pending').length;
+
+  const screen = history[history.length - 1];
 
   const navigation = {
     navigate: (name: string, p?: any) => {
-      setScreen(name);
+      setHistory((prev) => [...prev, name]);
       setParams(p);
     },
-    goBack: () => setScreen('dashboard'),
+    goBack: () =>
+      setHistory((prev) => {
+        if (prev.length > 1) return prev.slice(0, -1);
+        if (prev[0] !== 'dashboard') return ['dashboard'];
+        return prev;
+      }),
   };
 
+  // Android hardware back button
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (history.length > 1) {
+        setHistory((prev) => prev.slice(0, -1));
+        return true; // handled — do NOT exit
+      }
+      if (history[0] !== 'dashboard') {
+        setHistory(['dashboard']);
+        return true; // go to dashboard instead of exiting
+      }
+      return false; // at root — let OS handle (exits app)
+    });
+    return () => handler.remove();
+  }, [history]);
+
   const sidebarItems: SidebarItem[] = [
-    { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' as const },
-    { key: 'AdminDepartments', label: 'Departments', icon: 'office-building-outline' as const },
+    { key: 'dashboard', label: 'Home', icon: 'view-dashboard-outline' as const },
     { key: 'AdminStaffRoles', label: 'Roles', icon: 'shield-account-outline' as const },
-    { key: 'AdminStaffAccounts', label: 'Staff', icon: 'account-tie-outline' as const },
-    { key: 'AdminClearances', label: 'All Clearances', icon: 'clipboard-check-outline' as const },
-    { key: 'AdminPendingStudents', label: 'Pending', icon: 'clock-alert-outline' as const, badge: pendingCount },
     { key: 'AdminStudents', label: 'Students', icon: 'account-school-outline' as const },
+    { key: 'AdminSettings', label: 'Settings', icon: 'cog-outline' as const },
   ];
 
   const renderScreen = () => {
@@ -270,6 +238,8 @@ const AdminNavigator: React.FC = () => {
         return <AdminPendingStudentsScreen navigation={navigation} />;
       case 'AdminStudents':
         return <AdminStudentsScreen navigation={navigation} />;
+      case 'AdminSettings':
+        return <AdminSettingsScreen navigation={navigation} />;
       default:
         return <AdminDashboardScreen navigation={navigation} />;
     }
@@ -279,10 +249,8 @@ const AdminNavigator: React.FC = () => {
     <SafeAreaView style={styles.adminShell}>
       <AdminHeader
         adminName={user?.name || 'Admin User'}
-        onLogout={logout}
         isCompact={isCompact}
-        isMobileDrawer={isMobileDrawer}
-        onDrawerToggle={() => setDrawerOpen(!drawerOpen)}
+        onBack={navigation.goBack}
       />
       <View style={styles.adminBody}>
         {!isMobileDrawer && (
@@ -296,25 +264,23 @@ const AdminNavigator: React.FC = () => {
                   badge={item.badge}
                   isActive={screen === item.key}
                   isCompact={isCompact}
-                  onPress={() => navigation.navigate(item.key)}
+                  onPress={() => setHistory([item.key])}
                 />
               ))}
             </View>
           </View>
         )}
 
-        {isMobileDrawer && (
-          <MobileDrawer
-            isOpen={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            items={sidebarItems}
-            onItemPress={(key) => navigation.navigate(key)}
-            activeItem={screen}
-          />
-        )}
-
         <View style={styles.adminContent}>{renderScreen()}</View>
       </View>
+
+      {isMobileDrawer && (
+        <BottomTabBar
+          items={sidebarItems}
+          activeItem={screen}
+          onItemPress={(key) => setHistory([key])}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -351,23 +317,45 @@ const AdminNavItem: React.FC<AdminNavItemProps> = ({ label, icon, badge, isActiv
  */
 const StaffNavigator: React.FC = () => {
   const { user, logout } = useAuth();
-  const [screen, setScreen] = React.useState('dashboard');
+  const [history, setHistory] = React.useState<string[]>(['dashboard']);
   const [params, setParams] = React.useState<any>(null);
   const { width } = useWindowDimensions();
   const isCompact = width < 760;
   const isMobileDrawer = width < 600;
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const screen = history[history.length - 1];
 
   const navigation = {
     navigate: (name: string, p?: any) => {
-      setScreen(name);
+      setHistory((prev) => [...prev, name]);
       setParams(p);
     },
-    goBack: () => setScreen('dashboard'),
+    goBack: () =>
+      setHistory((prev) => {
+        if (prev.length > 1) return prev.slice(0, -1);
+        if (prev[0] !== 'dashboard') return ['dashboard'];
+        return prev;
+      }),
   };
 
+  // Android hardware back button
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (history.length > 1) {
+        setHistory((prev) => prev.slice(0, -1));
+        return true;
+      }
+      if (history[0] !== 'dashboard') {
+        setHistory(['dashboard']);
+        return true;
+      }
+      return false;
+    });
+    return () => handler.remove();
+  }, [history]);
+
   const sidebarItems: SidebarItem[] = [
-    { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' as const },
+    { key: 'dashboard', label: 'Home', icon: 'view-dashboard-outline' as const },
     { key: 'StaffClearances', label: 'Student Clearances', icon: 'clipboard-check-outline' as const },
     { key: 'StaffSettings', label: 'Settings', icon: 'cog-outline' as const },
   ];
@@ -393,10 +381,8 @@ const StaffNavigator: React.FC = () => {
     <SafeAreaView style={styles.adminShell}>
       <StaffHeader
         staffName={user?.name || 'Staff Member'}
-        onLogout={logout}
         isCompact={isCompact}
-        isMobileDrawer={isMobileDrawer}
-        onDrawerToggle={() => setDrawerOpen(!drawerOpen)}
+        onBack={navigation.goBack}
       />
       <View style={styles.adminBody}>
         {!isMobileDrawer && (
@@ -409,25 +395,23 @@ const StaffNavigator: React.FC = () => {
                   icon={item.icon}
                   isActive={screen === item.key}
                   isCompact={isCompact}
-                  onPress={() => navigation.navigate(item.key)}
+                  onPress={() => setHistory([item.key])}
                 />
               ))}
             </View>
           </View>
         )}
 
-        {isMobileDrawer && (
-          <MobileDrawer
-            isOpen={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            items={sidebarItems}
-            onItemPress={(key) => navigation.navigate(key)}
-            activeItem={screen}
-          />
-        )}
-
         <View style={styles.adminContent}>{renderScreen()}</View>
       </View>
+
+      {isMobileDrawer && (
+        <BottomTabBar
+          items={sidebarItems}
+          activeItem={screen}
+          onItemPress={(key) => setHistory([key])}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -435,22 +419,15 @@ const StaffNavigator: React.FC = () => {
 interface StaffHeaderProps {
   staffName: string;
   isCompact: boolean;
-  isMobileDrawer: boolean;
-  onDrawerToggle: () => void;
-  onLogout: () => void;
+  onBack: () => void;
 }
 
-const StaffHeader: React.FC<StaffHeaderProps> = ({ staffName, isCompact, isMobileDrawer, onDrawerToggle, onLogout }) => (
+const StaffHeader: React.FC<StaffHeaderProps> = ({ staffName, isCompact, onBack }) => (
   <View style={styles.adminHeader}>
     <View style={styles.adminBrandBlock}>
-      {isMobileDrawer && (
-        <TouchableOpacity onPress={onDrawerToggle} style={styles.hamburgerButton} accessibilityRole="button">
-          <MaterialCommunityIcons name="menu" size={24} color="#0f172a" />
-        </TouchableOpacity>
-      )}
-      <View style={styles.adminBrandMark}>
-        <MaterialCommunityIcons name="check-decagram" size={18} color="#ffffff" />
-      </View>
+      <TouchableOpacity style={styles.adminBrandMark} onPress={onBack} activeOpacity={0.7}>
+        <MaterialCommunityIcons name="arrow-left" size={18} color="#ffffff" />
+      </TouchableOpacity>
       <Text style={styles.adminBrandText}>ClearanceHub</Text>
     </View>
 
@@ -459,10 +436,6 @@ const StaffHeader: React.FC<StaffHeaderProps> = ({ staffName, isCompact, isMobil
       <View style={styles.adminRoleBadge}>
         <Text style={styles.adminRoleBadgeText}>Staff</Text>
       </View>
-      <TouchableOpacity style={styles.adminLogoutButton} onPress={onLogout} accessibilityRole="button">
-        <MaterialCommunityIcons name="logout" size={18} color="#ffffff" />
-        {!isCompact ? <Text style={styles.adminLogoutText}>Logout</Text> : null}
-      </TouchableOpacity>
     </View>
   </View>
 );
@@ -471,24 +444,46 @@ const StaffHeader: React.FC<StaffHeaderProps> = ({ staffName, isCompact, isMobil
  * Student Navigator
  */
 const StudentNavigator: React.FC = () => {
-  const { user, logout } = useAuth();
-  const [screen, setScreen] = React.useState('dashboard');
+  const { user } = useAuth();
+  const [history, setHistory] = React.useState<string[]>(['dashboard']);
   const [params, setParams] = React.useState<any>(null);
   const { width } = useWindowDimensions();
   const isCompact = width < 760;
   const isMobileDrawer = width < 760;
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const screen = history[history.length - 1];
 
   const navigation = {
     navigate: (name: string, p?: any) => {
-      setScreen(name);
+      setHistory((prev) => [...prev, name]);
       setParams(p);
     },
-    goBack: () => setScreen('dashboard'),
+    goBack: () =>
+      setHistory((prev) => {
+        if (prev.length > 1) return prev.slice(0, -1);
+        if (prev[0] !== 'dashboard') return ['dashboard'];
+        return prev;
+      }),
   };
 
+  // Android hardware back button
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (history.length > 1) {
+        setHistory((prev) => prev.slice(0, -1));
+        return true;
+      }
+      if (history[0] !== 'dashboard') {
+        setHistory(['dashboard']);
+        return true;
+      }
+      return false;
+    });
+    return () => handler.remove();
+  }, [history]);
+
   const sidebarItems: SidebarItem[] = [
-    { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' as const },
+    { key: 'dashboard', label: 'Home', icon: 'view-dashboard-outline' as const },
     { key: 'StudentClearances', label: 'My Clearances', icon: 'clipboard-check-outline' as const },
     { key: 'StudentSettings', label: 'Settings', icon: 'cog-outline' as const },
   ];
@@ -512,10 +507,8 @@ const StudentNavigator: React.FC = () => {
     <SafeAreaView style={styles.adminShell}>
       <StudentHeader
         studentName={user?.name || 'Student'}
-        onLogout={logout}
         isCompact={isCompact}
-        isMobileDrawer={isMobileDrawer}
-        onDrawerToggle={() => setDrawerOpen(!drawerOpen)}
+        onBack={navigation.goBack}
       />
       <View style={styles.adminBody}>
         {!isMobileDrawer && (
@@ -528,25 +521,23 @@ const StudentNavigator: React.FC = () => {
                   icon={item.icon}
                   isActive={screen === item.key}
                   isCompact={isCompact}
-                  onPress={() => navigation.navigate(item.key)}
+                  onPress={() => setHistory([item.key])}
                 />
               ))}
             </View>
           </View>
         )}
 
-        {isMobileDrawer && (
-          <MobileDrawer
-            isOpen={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            items={sidebarItems}
-            onItemPress={(key) => navigation.navigate(key)}
-            activeItem={screen}
-          />
-        )}
-
         <View style={styles.adminContent}>{renderScreen()}</View>
       </View>
+
+      {isMobileDrawer && (
+        <BottomTabBar
+          items={sidebarItems}
+          activeItem={screen}
+          onItemPress={(key) => setHistory([key])}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -554,22 +545,15 @@ const StudentNavigator: React.FC = () => {
 interface StudentHeaderProps {
   studentName: string;
   isCompact: boolean;
-  isMobileDrawer: boolean;
-  onDrawerToggle: () => void;
-  onLogout: () => void;
+  onBack: () => void;
 }
 
-const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName, isCompact, isMobileDrawer, onDrawerToggle, onLogout }) => (
+const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName, isCompact, onBack }) => (
   <View style={styles.adminHeader}>
     <View style={styles.adminBrandBlock}>
-      {isMobileDrawer && (
-        <TouchableOpacity onPress={onDrawerToggle} style={styles.hamburgerButton} accessibilityRole="button">
-          <MaterialCommunityIcons name="menu" size={24} color="#0f172a" />
-        </TouchableOpacity>
-      )}
-      <View style={styles.adminBrandMark}>
-        <MaterialCommunityIcons name="check-decagram" size={18} color="#ffffff" />
-      </View>
+      <TouchableOpacity style={styles.adminBrandMark} onPress={onBack} activeOpacity={0.7}>
+        <MaterialCommunityIcons name="arrow-left" size={18} color="#ffffff" />
+      </TouchableOpacity>
       <Text style={styles.adminBrandText}>ClearanceHub</Text>
     </View>
 
@@ -578,10 +562,6 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName, isCompact, i
       <View style={styles.adminRoleBadge}>
         <Text style={styles.adminRoleBadgeText}>Student</Text>
       </View>
-      <TouchableOpacity style={styles.adminLogoutButton} onPress={onLogout} accessibilityRole="button">
-        <MaterialCommunityIcons name="logout" size={18} color="#ffffff" />
-        {!isCompact ? <Text style={styles.adminLogoutText}>Logout</Text> : null}
-      </TouchableOpacity>
     </View>
   </View>
 );
@@ -589,15 +569,15 @@ const StudentHeader: React.FC<StudentHeaderProps> = ({ studentName, isCompact, i
 const styles = StyleSheet.create({
   adminShell: {
     flex: 1,
-    backgroundColor: '#f4f6f9',
+    backgroundColor: '#FFFFFF',
   },
   adminHeader: {
-    minHeight: 72,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    minHeight: 64,
+    paddingHorizontal: 20,
+    paddingBottom: 26,
+    paddingTop: 48,
+    backgroundColor: '#082052',
+    borderBottomWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -610,17 +590,18 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   adminBrandMark: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     borderRadius: 8,
-    backgroundColor: '#2563eb',
+    backgroundColor: Colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   adminBrandText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   adminHeaderRight: {
     flexDirection: 'row',
@@ -630,20 +611,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   adminWelcome: {
-    fontSize: 14,
-    color: '#334155',
+    fontSize: 13,
+    color: '#D0E4EF',
     fontWeight: '600',
   },
   adminRoleBadge: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#3E6985',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   adminRoleBadgeText: {
-    fontSize: 12,
-    color: '#334155',
+    fontSize: 11,
+    color: '#FFFFFF',
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
   adminLogoutButton: {
     minHeight: 36,
@@ -666,7 +648,7 @@ const styles = StyleSheet.create({
   },
   adminSidebar: {
     width: 248,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#082052',
     paddingHorizontal: 16,
     paddingVertical: 22,
   },
@@ -675,34 +657,67 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     alignItems: 'center',
   },
-  drawerContent: {
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 16,
-    paddingVertical: 22,
+  bottomTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2D9C9',
+    paddingBottom: 8,
+    paddingTop: 6,
+    shadowColor: '#082052',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 12,
   },
-  drawerOverlay: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 40,
+  bottomTabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    gap: 2,
   },
-  mobileDrawer: {
+  bottomTabIconWrap: {
+    width: 44,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  bottomTabIconWrapActive: {
+    backgroundColor: '#082052',
+    borderRadius: 12,
+  },
+  bottomTabBadge: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: 260,
-    backgroundColor: '#1e293b',
-    zIndex: 50,
-    paddingHorizontal: 16,
-    paddingVertical: 22,
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#f97316',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bottomTabBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  bottomTabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#5C6B7A',
+  },
+  bottomTabLabelActive: {
+    color: '#082052',
+    fontWeight: '800',
   },
   adminContent: {
     flex: 1,
-    backgroundColor: '#f4f6f9',
+    backgroundColor: '#FFFFFF',
   },
   adminNavGroup: {
     marginBottom: 22,
@@ -727,7 +742,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   adminNavItemActive: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#3E6985',
   },
   adminNavItemCompact: {
     width: 48,

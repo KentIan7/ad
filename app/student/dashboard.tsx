@@ -5,7 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Colors, Spacing, Typography } from '@/constants/colors';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/colors';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import React, { useMemo } from 'react';
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...Typography.h3,
-    color: Colors.text,
+    color: Colors.primary,
     marginBottom: Spacing.xs,
   },
   sectionSubtitle: {
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   chartTitle: {
     ...Typography.h3,
-    color: Colors.text,
+    color: Colors.primary,
     marginBottom: Spacing.md,
   },
   progressRow: {
@@ -173,14 +173,14 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
   },
   progressTrack: {
-    height: 10,
+    height: 8,
     backgroundColor: Colors.border,
-    borderRadius: 999,
+    borderRadius: BorderRadius.full,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 999,
+    borderRadius: BorderRadius.full,
   },
   metricRow: {
     flexDirection: 'row',
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     ...Typography.body,
-    color: Colors.text,
+    color: Colors.primary,
     fontWeight: '700',
   },
   analyticsGridMobile: {
