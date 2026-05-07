@@ -1,6 +1,6 @@
 /**
- * Student Settings Screen
- * Allows students to manage their account profile and change password.
+ * Admin Settings Screen
+ * Allows admin to manage their account profile, change password, and logout.
  */
 
 import { Button } from '@/components/ui/button';
@@ -8,15 +8,15 @@ import { Card } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-interface StudentSettingsScreenProps {
+interface AdminSettingsScreenProps {
   navigation?: any;
 }
 
-const StudentSettingsScreen: React.FC<StudentSettingsScreenProps> = () => {
+const AdminSettingsScreen: React.FC<AdminSettingsScreenProps> = () => {
   const { user, updateAccountSettings, logout, isLoading } = useAuth();
 
   const [settingsName, setSettingsName] = useState(user?.name || '');
@@ -45,14 +45,8 @@ const StudentSettingsScreen: React.FC<StudentSettingsScreenProps> = () => {
     if (!settingsName.trim()) nextErrors.name = 'Name is required';
     if (!settingsEmail.trim()) nextErrors.email = 'Email is required';
     else if (!settingsEmail.includes('@')) nextErrors.email = 'Please enter a valid email';
-
-    if (newPassword && newPassword.length < 6) {
-      nextErrors.newPassword = 'New password must be at least 6 characters';
-    }
-
-    if (newPassword !== confirmPassword) {
-      nextErrors.confirmPassword = 'Passwords do not match';
-    }
+    if (newPassword && newPassword.length < 6) nextErrors.newPassword = 'New password must be at least 6 characters';
+    if (newPassword !== confirmPassword) nextErrors.confirmPassword = 'Passwords do not match';
 
     const emailChanged = settingsEmail.trim().toLowerCase() !== (user?.email || '').toLowerCase();
     const passwordChanged = newPassword.trim().length > 0;
@@ -172,6 +166,7 @@ const StudentSettingsScreen: React.FC<StudentSettingsScreenProps> = () => {
         </Card>
       </View>
 
+      {/* Logout */}
       <View style={styles.logoutSection}>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} accessibilityRole="button">
           <MaterialCommunityIcons name="logout" size={20} color="#ef4444" />
@@ -191,7 +186,7 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.md,
   },
   sectionTitle: {
     ...Typography.h3,
@@ -229,4 +224,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default StudentSettingsScreen;
+export default AdminSettingsScreen;

@@ -16,6 +16,8 @@ import {
     Text,
     TouchableOpacity,
     View,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 
 interface ResetPasswordScreenProps {
@@ -61,7 +63,12 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Reset Password</Text>
@@ -123,6 +130,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
         </View>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -134,8 +142,9 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.lg,
+    flexGrow: 1,
     justifyContent: 'center',
-    minHeight: '100%',
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',

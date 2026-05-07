@@ -31,6 +31,7 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [errors, setErrors] = useState<{name?: string, description?: string}>({});
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const handleSave = async () => {
     const safeName = name || '';
@@ -148,22 +149,30 @@ const AdminStaffRolesScreen: React.FC<AdminStaffRolesScreenProps> = ({ navigatio
           data={staffRoles}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <Card>
-              <View style={styles.roleCard}>
-                <View style={styles.roleInfo}>
-                  <Text style={styles.roleName}>{item.name}</Text>
-                  <Text style={styles.roleDescription}>{item.description}</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onLongPress={() => setSelectedCardId(selectedCardId === item.id ? null : item.id)}
+              delayLongPress={200}
+            >
+              <Card>
+                <View style={styles.roleCard}>
+                  <View style={styles.roleInfo}>
+                    <Text style={styles.roleName}>{item.name}</Text>
+                    <Text style={styles.roleDescription}>{item.description}</Text>
+                  </View>
                 </View>
-                <View style={styles.actionsContainer}>
-                  <TouchableOpacity onPress={() => handleEdit(item)}>
-                    <Text style={styles.editButton}>✏️</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                    <Text style={styles.deleteButton}>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Card>
+                {selectedCardId === item.id && (
+                  <View style={styles.textActionsRow}>
+                    <TouchableOpacity onPress={() => handleEdit(item)} style={styles.textActionButton}>
+                      <Text style={styles.textAction}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.textActionButton}>
+                      <Text style={[styles.textAction, styles.textActionDelete]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </Card>
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
         />
@@ -293,17 +302,25 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
     marginTop: Spacing.xs,
   },
-  actionsContainer: {
+  textActionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
   },
-  editButton: {
-    fontSize: 20,
-    paddingLeft: Spacing.md,
+  textActionButton: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
   },
-  deleteButton: {
-    fontSize: 20,
-    paddingLeft: Spacing.md,
+  textAction: {
+    ...Typography.bodyMedium,
+    color: Colors.primary,
+  },
+  textActionDelete: {
+    color: Colors.rejected,
   },
   modalOverlay: {
     flex: 1,

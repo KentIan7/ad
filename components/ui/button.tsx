@@ -30,15 +30,14 @@ export const Button: React.FC<ButtonProps> = ({
     if (disabled) return Colors.border;
     switch (variant) {
       case 'primary':
-        return Colors.primary;
       case 'secondary':
-        return Colors.secondary;
+        return Colors.secondary; // Use gold for primary and secondary
       case 'danger':
         return Colors.rejected;
       case 'success':
         return Colors.approved;
       default:
-        return Colors.primary;
+        return Colors.secondary;
     }
   };
 
@@ -83,7 +82,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   text: {
-    color: Colors.textInverse,
-    fontWeight: '600',
+    color: Colors.textInverse, // White text works with this gold
+    fontWeight: '700',
   },
 });

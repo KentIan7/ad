@@ -34,6 +34,7 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
   const [staffRole, setStaffRole] = useState('');
   const [departmentsAllowed, setDepartmentsAllowed] = useState<string[]>([]);
   const [errors, setErrors] = useState<{name?: string; description?: string; staffRole?: string; departments?: string}>({});
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const handleSave = async () => {
     const safeName = name || '';
@@ -161,39 +162,47 @@ const AdminClearancesScreen: React.FC<AdminClearancesScreenProps> = ({ navigatio
           data={clearances}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <Card>
-              <View style={styles.clearanceCard}>
-                <View style={styles.clearanceInfo}>
-                  <Text style={styles.clearanceName}>{item.name}</Text>
-                  <Text style={styles.clearanceDescription}>{item.description}</Text>
-                  <View style={styles.partsList}>
-                    <Text style={styles.partItem}>
-                      Assigned to: {staffRoles.find(r => r.id === item.staffRole)?.name || item.staffRole}
-                    </Text>
-                  </View>
-                  <View style={styles.departmentsList}>
-                    <Text style={styles.clearanceMeta}>
-                      {item.departmentsAllowed.length} department{item.departmentsAllowed.length !== 1 ? 's' : ''}
-                    </Text>
-                    {item.departmentsAllowed.length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onLongPress={() => setSelectedCardId(selectedCardId === item.id ? null : item.id)}
+              delayLongPress={200}
+            >
+              <Card>
+                <View style={styles.clearanceCard}>
+                  <View style={styles.clearanceInfo}>
+                    <Text style={styles.clearanceName}>{item.name}</Text>
+                    <Text style={styles.clearanceDescription}>{item.description}</Text>
+                    <View style={styles.partsList}>
                       <Text style={styles.partItem}>
-                        {item.departmentsAllowed
-                          .map(deptId => departments.find(d => d.id === deptId)?.name || deptId)
-                          .join(', ')}
+                        Assigned to: {staffRoles.find(r => r.id === item.staffRole)?.name || item.staffRole}
                       </Text>
-                    )}
+                    </View>
+                    <View style={styles.departmentsList}>
+                      <Text style={styles.clearanceMeta}>
+                        {item.departmentsAllowed.length} department{item.departmentsAllowed.length !== 1 ? 's' : ''}
+                      </Text>
+                      {item.departmentsAllowed.length > 0 && (
+                        <Text style={styles.partItem}>
+                          {item.departmentsAllowed
+                            .map(deptId => departments.find(d => d.id === deptId)?.name || deptId)
+                            .join(', ')}
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 </View>
-                <View style={styles.actionsContainer}>
-                  <TouchableOpacity onPress={() => handleEdit(item)}>
-                    <Text style={styles.editButton}>✏️</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                    <Text style={styles.deleteButton}>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Card>
+                {selectedCardId === item.id && (
+                  <View style={styles.textActionsRow}>
+                    <TouchableOpacity onPress={() => handleEdit(item)} style={styles.textActionButton}>
+                      <Text style={styles.textAction}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.textActionButton}>
+                      <Text style={[styles.textAction, styles.textActionDelete]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </Card>
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
         />
@@ -406,17 +415,25 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
     marginVertical: Spacing.xs,
   },
-  actionsContainer: {
+  textActionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
   },
-  editButton: {
-    fontSize: 20,
-    paddingLeft: Spacing.md,
+  textActionButton: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
   },
-  deleteButton: {
-    fontSize: 20,
-    paddingLeft: Spacing.md,
+  textAction: {
+    ...Typography.bodyMedium,
+    color: Colors.primary,
+  },
+  textActionDelete: {
+    color: Colors.rejected,
   },
   modalOverlay: {
     flex: 1,

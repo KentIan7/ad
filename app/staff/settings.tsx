@@ -9,14 +9,15 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface StaffSettingsScreenProps {
   navigation?: any;
 }
 
 const StaffSettingsScreen: React.FC<StaffSettingsScreenProps> = () => {
-  const { user, updateAccountSettings, isLoading } = useAuth();
+  const { user, updateAccountSettings, logout, isLoading } = useAuth();
   
   const [settingsName, setSettingsName] = useState(user?.name || '');
   const [settingsEmail, setSettingsEmail] = useState(user?.email || '');
@@ -73,8 +74,20 @@ const StaffSettingsScreen: React.FC<StaffSettingsScreenProps> = () => {
     }
   };
 
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: logout },
+    ]);
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <Text style={styles.sectionSubtitle}>
@@ -152,7 +165,15 @@ const StaffSettingsScreen: React.FC<StaffSettingsScreenProps> = () => {
           />
         </Card>
       </View>
+
+      <View style={styles.logoutSection}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} accessibilityRole="button">
+          <MaterialCommunityIcons name="logout" size={20} color="#ef4444" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -178,6 +199,27 @@ const styles = StyleSheet.create({
   },
   settingsButton: {
     marginTop: Spacing.md,
+  },
+  logoutSection: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xl,
+    paddingTop: Spacing.sm,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: '#ef4444',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+  },
+  logoutText: {
+    color: '#ef4444',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
 

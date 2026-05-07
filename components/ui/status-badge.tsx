@@ -41,6 +41,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'medium
   };
 
   const getStatusLabel = (): string => {
+    if (!status) return 'Unknown';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 

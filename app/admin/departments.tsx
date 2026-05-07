@@ -32,6 +32,7 @@ const AdminDepartmentsScreen: React.FC<AdminDepartmentsScreenProps> = ({ navigat
   const [description, setDescription] = useState('');
   const [errors, setErrors] = useState<{name?: string, description?: string}>({});
   const [showArchived, setShowArchived] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const activeDepartments = departments.filter(d => d.status === 'active');
   const archivedDepartments = departments.filter(d => d.status === 'archived');
@@ -255,43 +256,49 @@ const AdminDepartmentsScreen: React.FC<AdminDepartmentsScreenProps> = ({ navigat
           data={displayedDepartments}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <Card>
-              <View style={styles.departmentCard}>
-                <View style={styles.departmentInfo}>
-                  <View style={styles.departmentHeader}>
-                    <Text style={styles.departmentName}>{item.name}</Text>
-                    <View style={[styles.statusBadge, item.status === 'archived' && styles.archivedBadge]}>
-                      <Text style={styles.statusText}>
-                        {item.status === 'archived' ? 'Archived' : 'Active'}
-                      </Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onLongPress={() => setSelectedCardId(selectedCardId === item.id ? null : item.id)}
+              delayLongPress={200}
+            >
+              <Card>
+                <View style={styles.departmentCard}>
+                  <View style={styles.departmentInfo}>
+                    <View style={styles.departmentHeader}>
+                      <Text style={styles.departmentName}>{item.name}</Text>
+                      <View style={[styles.statusBadge, item.status === 'archived' && styles.archivedBadge]}>
+                        <Text style={styles.statusText}>
+                          {item.status === 'archived' ? 'Archived' : 'Active'}
+                        </Text>
+                      </View>
                     </View>
+                    <Text style={styles.departmentDescription}>{item.description}</Text>
                   </View>
-                  <Text style={styles.departmentDescription}>{item.description}</Text>
                 </View>
-                <View style={styles.actionsContainer}>
-                  {item.status === 'active' && (
-                    <>
-                      <TouchableOpacity onPress={() => handleEdit(item)}>
-                        <Text style={styles.editButton}>✏️</Text>
+                {selectedCardId === item.id && (
+                  <View style={styles.textActionsRow}>
+                    {item.status === 'active' && (
+                      <>
+                        <TouchableOpacity onPress={() => handleEdit(item)} style={styles.textActionButton}>
+                          <Text style={styles.textAction}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleArchive(item.id)} style={styles.textActionButton}>
+                          <Text style={styles.textAction}>Archive</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    {item.status === 'archived' && (
+                      <TouchableOpacity onPress={() => handleRestore(item.id)} style={styles.textActionButton}>
+                        <Text style={styles.textAction}>Restore</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleArchive(item.id)}>
-                        <Text style={styles.archiveButton}>📦</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  {item.status === 'archived' && (
-                    <>
-                      <TouchableOpacity onPress={() => handleRestore(item.id)}>
-                        <Text style={styles.restoreButton}>↩️</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                    <Text style={styles.deleteButton}>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Card>
+                    )}
+                    <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.textActionButton}>
+                      <Text style={[styles.textAction, styles.textActionDelete]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </Card>
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
         />
@@ -470,22 +477,25 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
     marginTop: Spacing.xs,
   },
-  actionsContainer: {
+  textActionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
   },
-  editButton: {
-    fontSize: 20,
+  textActionButton: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
   },
-  archiveButton: {
-    fontSize: 20,
+  textAction: {
+    ...Typography.bodyMedium,
+    color: Colors.primary,
   },
-  restoreButton: {
-    fontSize: 20,
-  },
-  deleteButton: {
-    fontSize: 20,
+  textActionDelete: {
+    color: Colors.rejected,
   },
   modalOverlay: {
     flex: 1,
