@@ -3,15 +3,16 @@
  * Manages user login/logout and authentication state
  */
 
-import { apiService } from '@/services/api';
 import { AuthContextType, User } from '@/types';
 import { auth, db } from '@/utils/firebase';
 import {
+    confirmPasswordReset,
     createUserWithEmailAndPassword,
     EmailAuthProvider,
     fetchSignInMethodsForEmail,
     onAuthStateChanged,
     reauthenticateWithCredential,
+    sendPasswordResetEmail,
     signInWithEmailAndPassword,
     signOut,
     updateEmail,
@@ -34,7 +35,7 @@ export const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   login: async () => {},
-  logout: () => {},
+  logout: async () => {},
   setUser: () => {},
   forgotPassword: async () => {},
   resetPassword: async () => {},
@@ -124,6 +125,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await signOut(auth);
         throw new Error('Your account is not active yet. Please contact an administrator.');
       }
+
+      const currentUserData = userDoc.data() as User;
+      if ((currentUserData.status || 'active') === 'archived') {
+        await signOut(auth);
+        throw new Error('This account has been archived. Please contact an administrator.');
+      }
     } catch (error: any) {
       console.error('Login error:', error.message);
       throw error;
@@ -136,8 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       await signOut(auth);
+      setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +155,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const forgotPassword = useCallback(async (email: string) => {
     setIsLoading(true);
     try {
-      await apiService.forgotPassword(email);
+      const normalizedEmail = email.trim().toLowerCase();
+
+      if (!normalizedEmail) {
+        throw new Error('Email address is required.');
+      }
+
+      await sendPasswordResetEmail(auth, normalizedEmail);
     } catch (error: any) {
       console.error('Forgot password error:', error.message);
       throw error;
@@ -158,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = useCallback(async (token: string, newPassword: string) => {
     setIsLoading(true);
     try {
-      await apiService.resetPassword(token, newPassword);
+      await confirmPasswordReset(auth, token.trim(), newPassword);
     } catch (error: any) {
       console.error('Reset password error:', error.message);
       throw error;
