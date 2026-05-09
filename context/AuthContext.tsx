@@ -31,9 +31,32 @@ import {
 } from 'firebase/firestore';
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 
+const getAuthErrorMessage = (error: any, fallbackMessage: string) => {
+  switch (error?.code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+    case 'auth/invalid-login-credentials':
+      return 'Incorrect email or password.';
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/email-already-in-use':
+      return 'An account with this email already exists.';
+    case 'auth/weak-password':
+      return 'Password must be at least 6 characters.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Please try again later.';
+    case 'auth/network-request-failed':
+      return 'Network error. Please check your internet connection and try again.';
+    default:
+      return error?.message || fallbackMessage;
+  }
+};
+
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
+  isInitializing: true,
   login: async () => {},
   logout: async () => {},
   setUser: () => {},
@@ -45,12 +68,12 @@ export const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Sync with Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsLoading(true);
       if (firebaseUser) {
         // Fetch additional user data from Firestore
         try {
@@ -87,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUser(null);
       }
-      setIsLoading(false);
+      setIsInitializing(false);
     });
 
     return unsubscribe;
@@ -132,8 +155,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('This account has been archived. Please contact an administrator.');
       }
     } catch (error: any) {
-      console.error('Login error:', error.message);
-      throw error;
+      const message = getAuthErrorMessage(error, 'Unable to sign in right now.');
+      console.error('Login error:', message);
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -235,8 +259,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await signOut(auth);
     } catch (error: any) {
-      console.error('Registration error:', error.message);
-      throw error;
+      const message = getAuthErrorMessage(error, 'Unable to submit registration right now.');
+      console.error('Registration error:', message);
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -333,6 +358,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isLoading,
+        isInitializing,
         login,
         logout,
         setUser: updateUser,

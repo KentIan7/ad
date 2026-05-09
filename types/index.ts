@@ -80,6 +80,7 @@ export interface StudentRegistration {
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  isInitializing: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;

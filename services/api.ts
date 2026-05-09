@@ -1,9 +1,25 @@
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
+
 /**
  * API Service
  * Handles custom backend calls and EmailJS notifications.
  */
 
-const API_URL = 'https://api.example.com'; // TODO: Update with actual backend URL
+const resolveApiUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:3000`;
+  }
+
+  const host = Linking.parse(Linking.createURL('/')).hostname;
+  return host ? `http://${host}:3000` : 'http://localhost:3000';
+};
+
+const API_URL = resolveApiUrl();
 const EMAILJS_API_URL = 'https://api.emailjs.com/api/v1.0/email/send';
 const EMAILJS_SERVICE_ID = 'service_855pl3l';
 const EMAILJS_APPROVED_TEMPLATE_ID = 'template_ddhdpd4';
@@ -13,6 +29,16 @@ const EMAILJS_PUBLIC_KEY = 'rtOl8W4tvRgSvuTYa';
 type RegistrationEmailParams = {
   student_name: string;
   student_email: string;
+  to_email?: string;
+  email?: string;
+  user_email?: string;
+  recipient_email?: string;
+  email_to?: string;
+  to?: string;
+  recipient?: string;
+  to_name?: string;
+  name?: string;
+  user_name?: string;
   department: string;
   website_link?: string;
   support_email?: string;
@@ -20,6 +46,28 @@ type RegistrationEmailParams = {
 };
 
 const sendEmailJsTemplate = async (templateId: string, templateParams: RegistrationEmailParams) => {
+  const studentEmail = templateParams.student_email?.trim().toLowerCase();
+  const studentName = templateParams.student_name?.trim();
+
+  if (!studentEmail) {
+    throw new Error('Student email is required to send EmailJS email');
+  }
+
+  const normalizedTemplateParams = {
+    ...templateParams,
+    student_email: studentEmail,
+    to_email: templateParams.to_email || studentEmail,
+    email: templateParams.email || studentEmail,
+    user_email: templateParams.user_email || studentEmail,
+    recipient_email: templateParams.recipient_email || studentEmail,
+    email_to: templateParams.email_to || studentEmail,
+    to: templateParams.to || studentEmail,
+    recipient: templateParams.recipient || studentEmail,
+    to_name: templateParams.to_name || studentName,
+    name: templateParams.name || studentName,
+    user_name: templateParams.user_name || studentName,
+  };
+
   const response = await fetch(EMAILJS_API_URL, {
     method: 'POST',
     headers: {
@@ -29,13 +77,15 @@ const sendEmailJsTemplate = async (templateId: string, templateParams: Registrat
       service_id: EMAILJS_SERVICE_ID,
       template_id: templateId,
       user_id: EMAILJS_PUBLIC_KEY,
-      template_params: templateParams,
+      template_params: normalizedTemplateParams,
     }),
   });
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || 'Failed to send EmailJS email');
+    throw new Error(
+      `${message || 'Failed to send EmailJS email'} | recipient: ${studentEmail} | template: ${templateId}`
+    );
   }
 };
 
