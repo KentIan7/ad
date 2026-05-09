@@ -4,6 +4,7 @@
  * Students can also register for a new account (requires admin approval)
  */
 
+import Recaptcha from '@/components/auth/recaptcha';
 import { Button } from '@/components/ui/button';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Spacing, Typography } from '@/constants/colors';
@@ -31,11 +32,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { departments } = useApp();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; title: string; message: string } | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState('');
+  const [recaptchaResetTrigger, setRecaptchaResetTrigger] = useState(0);
   
   // Login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loginErrors, setLoginErrors] = useState<{email?: string; password?: string}>({});
+  const [loginErrors, setLoginErrors] = useState<{email?: string; password?: string; recaptcha?: string}>({});
 
   // Registration state
   const [regEmail, setRegEmail] = useState('');
@@ -78,9 +81,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
   const handleLogin = async () => {
     setNotice(null);
-    const newErrors: {email?: string; password?: string} = {};
+    const newErrors: {email?: string; password?: string; recaptcha?: string} = {};
     if (!email.trim()) newErrors.email = 'Email is required';
     if (!password.trim()) newErrors.password = 'Password is required';
+    if (!recaptchaToken) newErrors.recaptcha = 'Please complete reCAPTCHA before signing in';
     setLoginErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
@@ -93,6 +97,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           password: 'Incorrect email or password',
         });
       }
+      setRecaptchaToken('');
+      setRecaptchaResetTrigger((current) => current + 1);
       showMessage('Login Failed', error?.message || 'Invalid credentials');
     }
   };
@@ -225,6 +231,29 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               onKeyPress={handleWebSubmitKey(handleLogin)}
             />
 
+            <Recaptcha
+              siteKey="6Lc4WuEsAAAAACztGilxV_7G-SdpGLNmA7Cdr9ZI"
+              resetTrigger={recaptchaResetTrigger}
+              onVerify={(token) => {
+                setRecaptchaToken(token);
+                setLoginErrors((prev) => ({ ...prev, recaptcha: undefined }));
+                showMessage('Verification Complete', 'reCAPTCHA completed. You can now sign in.');
+              }}
+              onReset={() => {
+                setRecaptchaToken('');
+                setLoginErrors((prev) => ({
+                  ...prev,
+                  recaptcha: 'Please complete reCAPTCHA before signing in',
+                }));
+              }}
+              onError={(message) => {
+                setRecaptchaToken('');
+                setLoginErrors((prev) => ({ ...prev, recaptcha: message }));
+                showMessage('reCAPTCHA Failed', message);
+              }}
+            />
+            {loginErrors.recaptcha ? <Text style={styles.fieldErrorText}>{loginErrors.recaptcha}</Text> : null}
+
             <TouchableOpacity 
               onPress={handleForgotPassword} 
               style={styles.forgotPasswordContainer}
@@ -236,7 +265,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <Button
               title={isLoading ? 'Signing in...' : 'Sign In'}
               onPress={handleLogin}
-              disabled={isLoading}
+              disabled={isLoading || !recaptchaToken}
               style={styles.loginButton}
             />
           </View>
